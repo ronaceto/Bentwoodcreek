@@ -10,3 +10,9 @@ small{color:#555}.hero{max-height:180px;object-fit:cover;width:100%}a{color:#9b4
 .modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);padding:4vh 1rem;z-index:9999}
 .modal.open{display:block}.modal-card{background:#fff;max-width:780px;margin:0 auto;padding:1rem;border-radius:10px}
 .modal-actions{display:flex;gap:.5rem}
+.help{color:#4b5563}
+.item{border:1px solid #e5e7eb;border-radius:8px;padding:.8rem;margin:.8rem 0;background:#fcfcfd}
+.buttonlike{display:block;text-align:center;background:#4d3a30;color:#fff;border-radius:6px;padding:.6rem;cursor:pointer;margin:.4rem 0}
+.buttonlike.secondary{background:#6b7280}
+.danger{background:#a94442!important}
+h3,h4{margin:.6rem 0}
