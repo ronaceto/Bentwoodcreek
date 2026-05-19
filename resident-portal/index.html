@@ -3,92 +3,53 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Bentwood Creek Resident Portal (MVP)</title>
+  <title>Bentwood Creek Resident Portal MVP</title>
   <link rel="stylesheet" href="/assets/hoa-style.css" />
-  <style>
-    .portal-header{display:flex;justify-content:space-between;align-items:center;gap:1rem;flex-wrap:wrap}
-    .pill{display:inline-block;background:#eef2ff;color:#3730a3;padding:.2rem .6rem;border-radius:999px;font-size:.8rem}
-    .kpi{font-size:1.5rem;font-weight:700;margin:.25rem 0}
-    .muted{color:#6b7280}
-    .list-compact li{margin:.35rem 0}
-  </style>
 </head>
 <body>
-  <main class="container">
-    <section class="card portal-header" aria-label="Portal overview">
-      <div>
-        <h1>Resident Portal (Project Start)</h1>
-        <p class="muted">Initial MVP shell for authentication, dashboard, events, dues, documents, and requests.</p>
-      </div>
-      <a class="buttonlike" href="/">Back to HOA Home</a>
-    </section>
+<main class="container">
+  <section class="card"><h1>Resident Portal MVP (Phase 1)</h1><p class="help">Low-cost MVP using Google Sheets/Drive-ready data model and admin approvals.</p></section>
+  <section id="authCard" class="card"></section>
+  <section id="portal" style="display:none"></section>
+</main>
+<script src="/assets/hoa-app.js"></script>
+<script>
+function el(id){return document.getElementById(id)}
+function renderAuth(){
+  el('authCard').innerHTML=`<h2>Sign in</h2><input id='email' placeholder='Email'><input id='password' type='password' placeholder='Password'><button id='login'>Login</button>
+  <h3>New resident registration</h3><input id='rname' placeholder='Full name'><input id='remail' placeholder='Email'><input id='raddress' placeholder='Property address'><input id='rpass' type='password' placeholder='Password (8+ chars)'><button id='register' class='secondary'>Request Access</button>`;
+  el('login').onclick=async()=>{try{await BWC.loginResident(el('email').value,el('password').value); init();}catch(e){alert(e.message)}};
+  el('register').onclick=async()=>{try{await BWC.registerResident({name:el('rname').value,email:el('remail').value,address:el('raddress').value,password:el('rpass').value}); alert('Registration submitted for admin approval.');}catch(e){alert(e.message)}};
+}
+function card(title,body){return `<article class='card'><h2>${title}</h2>${body}</article>`}
+async function init(){
+  const resident=await BWC.getSessionResident();
+  if(!resident){renderAuth();return;}
+  el('authCard').style.display='none'; el('portal').style.display='block';
+  const data=await BWC.getData(); BWC.ensurePortal(data);
+  const announcements=(data.portal.announcements||[]).slice(0,5).map(a=>`<li><strong>${a.title}</strong> <small>${a.date}</small></li>`).join('')||'<li>None</li>';
+  const events=(data.events||[]).slice(0,5).map(e=>`<li><strong>${e.title}</strong> ${e.datetime}<br><button data-rsvp='${e.id}'>RSVP Yes</button></li>`).join('')||'<li>None</li>';
+  const docs=(data.portal.documents||[]).slice(0,6).map(d=>`<li>${d.name} (${d.category}) ${d.driveFileId?`<small>Drive:${d.driveFileId}</small>`:''}</li>`).join('')||'<li>None</li>';
+  const reqs=(data.portal.requests||[]).filter(r=>r.residentId===resident.id).map(r=>`<li>#${r.caseNumber} ${r.type} - ${r.status}</li>`).join('')||'<li>No requests</li>';
+  const logs=(data.portal.auditLogs||[]).slice(0,8).map(l=>`<li>${l.timestamp}: ${l.action}</li>`).join('');
+  el('portal').innerHTML=
+    card('Welcome',`<p><strong>${resident.name}</strong> (${resident.role}) — Status: <strong>${resident.status}</strong></p><button id='logout' class='secondary'>Logout</button>`)+
+    `<div class='grid two'>${card('Announcements',`<ul>${announcements}</ul>`)}${card('Events + RSVP',`<ul id='eventsList'>${events}</ul>`)}</div>`+
+    `<div class='grid two'>${card('Document Library (Google Drive-backed IDs)',`<ul>${docs}</ul>`)}${card('My Requests',`<ul>${reqs}</ul><textarea id='reqText' placeholder='Describe request'></textarea><select id='reqType'><option>Maintenance</option><option>Architectural Change</option></select><button id='submitReq'>Submit Request</button>`)}</div>`+
+    `<div class='grid two'>${card('Resident Directory (Opt-in)',`<label><input type='checkbox' id='optin' ${resident.directoryOptIn?'checked':''}/> Show me in directory</label><div id='dir'></div>`)}`+
+    `${card('Map Foundation + Payments Plan',`<p>Map foundation: parcel-level markers from admin map lots. Payments phase-2: evaluate Stripe vs PayPal/Braintree for Venmo, Apple Pay, cards, ACH.</p>`)}</div>`+
+    (resident.role==='admin'?card('Admin Dashboard Snapshot',`<p>Pending approvals: ${(data.portal.residents||[]).filter(r=>r.status==='pending').length}</p><div id='pending'></div>`):'')+
+    card('Audit Log',`<ul>${logs||'<li>No logs</li>'}</ul>`);
 
-    <section class="grid two">
-      <article class="card" aria-labelledby="status-title">
-        <h2 id="status-title">Account Status</h2>
-        <div><span class="pill" id="accountStatus">Pending</span></div>
-        <p><strong>User:</strong> <span id="residentName">Loading...</span></p>
-        <p><strong>Email:</strong> <span id="residentEmail">Loading...</span></p>
-      </article>
-
-      <article class="card" aria-labelledby="dues-title">
-        <h2 id="dues-title">Dues Summary</h2>
-        <div class="kpi" id="currentBalance">$0.00</div>
-        <p class="muted" id="nextAssessment">Next assessment: TBD</p>
-        <a class="buttonlike" href="#">Pay Dues (stub)</a>
-      </article>
-    </section>
-
-    <section class="grid two">
-      <article class="card" aria-labelledby="announcements-title">
-        <h2 id="announcements-title">Announcements</h2>
-        <ul id="announcementList" class="list-compact"></ul>
-      </article>
-      <article class="card" aria-labelledby="events-title">
-        <h2 id="events-title">Upcoming Events</h2>
-        <ul id="eventList" class="list-compact"></ul>
-      </article>
-    </section>
-
-    <section class="grid two">
-      <article class="card" aria-labelledby="docs-title">
-        <h2 id="docs-title">Document Library (Top 5)</h2>
-        <ul id="docList" class="list-compact"></ul>
-      </article>
-      <article class="card" aria-labelledby="requests-title">
-        <h2 id="requests-title">My Requests</h2>
-        <ul id="requestList" class="list-compact"></ul>
-      </article>
-    </section>
-  </main>
-
-  <script src="/assets/hoa-app.js"></script>
-  <script>
-    (async function(){
-      const data = await window.BWC.getData();
-      const resident = (data.portal && data.portal.residents && data.portal.residents[0]) || {name:'Resident', email:'resident@example.com', status:'pending'};
-
-      document.getElementById('residentName').textContent = resident.name;
-      document.getElementById('residentEmail').textContent = resident.email;
-      document.getElementById('accountStatus').textContent = resident.status || 'pending';
-
-      const balance = (data.portal && data.portal.dues && data.portal.dues.currentBalance) || 0;
-      const nextDate = (data.portal && data.portal.dues && data.portal.dues.nextAssessmentDate) || 'TBD';
-      document.getElementById('currentBalance').textContent = `$${Number(balance).toFixed(2)}`;
-      document.getElementById('nextAssessment').textContent = `Next assessment: ${nextDate}`;
-
-      const announcements = (data.portal && data.portal.announcements) || [];
-      document.getElementById('announcementList').innerHTML = announcements.slice(0,5).map(a => `<li><strong>${a.title}</strong> <span class="muted">(${a.date})</span></li>`).join('') || '<li>No announcements yet.</li>';
-
-      const events = data.events || [];
-      document.getElementById('eventList').innerHTML = events.slice(0,5).map(e => `<li><strong>${e.title}</strong> <span class="muted">${e.datetime}</span></li>`).join('') || '<li>No events yet.</li>';
-
-      const docs = (data.portal && data.portal.documents) || [];
-      document.getElementById('docList').innerHTML = docs.slice(0,5).map(d => `<li>${d.name} <span class="muted">(${d.category})</span></li>`).join('') || '<li>No documents yet.</li>';
-
-      const reqs = (data.portal && data.portal.requests) || [];
-      document.getElementById('requestList').innerHTML = reqs.slice(0,5).map(r => `<li>#${r.caseNumber} — ${r.type} <span class="muted">${r.status}</span></li>`).join('') || '<li>No requests yet.</li>';
-    })();
-  </script>
+  el('logout').onclick=()=>{BWC.logout();location.reload();};
+  document.querySelectorAll('[data-rsvp]').forEach(btn=>btn.onclick=()=>{const eventId=btn.dataset.rsvp; data.portal.rsvps.push({id:BWC.uid('rsvp'),eventId,residentId:resident.id,response:'yes',createdAt:new Date().toISOString()}); BWC.logAction(data,resident.id,'event.rsvp',`RSVP yes ${eventId}`); BWC.saveData(data); init();});
+  el('submitReq').onclick=()=>{const text=BWC.sanitize(el('reqText').value,300); if(!text) return alert('Enter request details.'); const type=el('reqType').value; data.portal.requests.push({id:BWC.uid('req'),caseNumber:`REQ-${Date.now()}`,residentId:resident.id,type,status:'Submitted',description:text,createdAt:new Date().toISOString()}); BWC.logAction(data,resident.id,'request.submitted',type); BWC.saveData(data); init();};
+  el('optin').onchange=()=>{resident.directoryOptIn=el('optin').checked; BWC.logAction(data,resident.id,'directory.optin',resident.directoryOptIn?'enabled':'disabled'); BWC.saveData(data); init();};
+  const visible=(data.portal.residents||[]).filter(r=>r.status==='active'&&r.directoryOptIn).map(r=>`${r.name} (${r.address||'Address hidden'})`).join('<br>')||'No directory entries';
+  el('dir').innerHTML=visible;
+  if(resident.role==='admin'){ const pend=(data.portal.residents||[]).filter(r=>r.status==='pending').map(r=>`<div class='item'>${r.name} (${r.email}) <button data-approve='${r.id}'>Approve</button></div>`).join('')||'No pending users'; el('pending').innerHTML=pend; document.querySelectorAll('[data-approve]').forEach(b=>b.onclick=()=>{const row=data.portal.residents.find(x=>x.id===b.dataset.approve); if(row){row.status='active'; BWC.logAction(data,resident.id,'admin.approve',row.email); BWC.saveData(data); init();}}); }
+}
+init();
+</script>
 </body>
 </html>

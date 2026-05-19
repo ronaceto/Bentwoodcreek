@@ -78,7 +78,21 @@
         "id": "res-1",
         "name": "Alex Morgan",
         "email": "alex@example.com",
-        "status": "active"
+        "status": "active",
+        "role": "resident",
+        "password": "Resident123",
+        "address": "",
+        "directoryOptIn": false
+      },
+      {
+        "id": "admin-1",
+        "name": "HOA Admin",
+        "email": "admin@bentwoodcreek.org",
+        "status": "active",
+        "role": "admin",
+        "password": "Admin2468!",
+        "address": "Clubhouse",
+        "directoryOptIn": false
       }
     ],
     "dues": {
@@ -120,6 +134,8 @@
         "type": "Maintenance",
         "status": "Submitted"
       }
-    ]
+    ],
+    "rsvps": [],
+    "auditLogs": []
   }
 }
