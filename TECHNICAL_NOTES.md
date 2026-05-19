@@ -1,36 +1,36 @@
-# Bentwood Creek Resident Portal MVP Technical Notes
+# Bentwood Creek Resident Portal MVP Technical Notes (Rework)
 
-## Architecture (Low-cost / Free-tier)
-- **Frontend/hosting**: Static HTML/CSS/JS deployable to Netlify or Vercel free tier.
-- **Primary datastore/auth source of truth**: Google Sheets tabs (Residents, Announcements, Events, RSVPs, Documents, Requests, Directory, AuditLogs).
-- **File storage**: Google Drive folder hierarchy with file IDs tracked in Sheets.
-- **Integration layer**: Apps Script Web App or serverless function proxy (Netlify/Vercel) for validated CRUD.
-- **Payments (Phase 2)**: Stripe Connect or Braintree/PayPal after fee comparison and board policy decision.
+## Low-cost Architecture
+- **Hosting**: Netlify or Vercel free tier static hosting.
+- **Data/Auth target**: Google Sheets + Apps Script API endpoints.
+- **Document storage**: Google Drive folders, storing file IDs + metadata in Sheets.
+- **Current MVP**: Front-end prototype with localStorage persistence for rapid iteration.
 
-## Phase Plan
-### Phase 1 (implemented in this MVP shell)
-- Resident registration/login flow with pending admin approval state.
-- Role-based portal behavior (`resident`, `admin`).
-- Dashboard cards for announcements, events/RSVP, document library, requests.
-- Resident request submission workflow with status tracking fields.
-- Directory opt-in toggle and public list filtered to active opted-in residents.
-- Admin approval workflow and lightweight admin snapshot.
-- Audit log capture for auth, approvals, directory changes, and submissions.
-- Client-side validation/sanitization for core text/email/password inputs.
+## Phase 1 Scope (MVP)
+Implemented in current rework:
+- Authenticated sign-in and registration request flow.
+- Admin approval/suspension workflow for residents.
+- Resident dashboard with announcements, events/RSVP, documents, and requests.
+- Resident directory opt-in behavior.
+- Admin announcement publishing from portal.
+- Audit logging for key actions.
+- Input sanitization and validation.
+- Role-based action gating in shared client services.
 
-### Phase 2
-- Replace localStorage persistence with Google Sheets + Apps Script API.
-- Google Drive signed/link-safe document access patterns.
-- Payment checkout integration and ledger sync.
-- Notification automation (email/SMS).
+## Payment Support Planning (Phase 2)
+Evaluate providers before go-live:
+- **Stripe**: cards + Apple Pay + ACH; no native Venmo.
+- **Braintree/PayPal**: cards + PayPal + Venmo; Apple Pay support depends on setup.
+- Decision criteria:
+  - Effective transaction cost for HOA dues size.
+  - Wallet support coverage (Venmo + Apple Pay priority).
+  - Dispute workflow simplicity for volunteer admins.
+  - Reconciliation exports to accounting workflows.
 
-### Phase 3
-- Interactive neighborhood map with lot metadata editing pipeline.
-- Full admin dashboard with filters, exports, SLA tracking, and moderation.
-
-## Security Notes
-- Current MVP is a functional prototype; production launch requires:
-  - Server-side auth and password hashing.
-  - CSRF/rate-limits and bot protection.
-  - Least-privilege service account access to Sheets/Drive.
-  - Immutable audit logs persisted server-side.
+## Security Hardening Before Production
+Required prior to launch:
+- Move auth and all writes to server-side endpoints (Apps Script/serverless).
+- Replace client-trusted roles with backend-verified session/claims.
+- Keep salted password hashes server-side only.
+- Add CSRF protections, rate limiting, and abuse controls.
+- Persist immutable audit logs server-side.
