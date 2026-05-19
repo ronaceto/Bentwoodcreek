@@ -1,8 +1,106 @@
-<!doctype html><html><head><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'><title>Admin Portal</title><link rel='stylesheet' href='/assets/hoa-style.css'></head><body><div class='container'><h1>Admin Portal</h1><div id='auth' class='card'><p>Enter admin PIN</p><input id='pin' type='password'><button id='login'>Login</button></div><div id='dash' style='display:none'></div></div><div id='editorModal' class='modal'><div class='modal-card'><h2 id='modalTitle'></h2><textarea id='modalText' rows='16'></textarea><div class='modal-actions'><button class='secondary' onclick='closeModal()'>Cancel</button><button onclick='saveModal()'>Save</button></div></div></div><script src='/assets/hoa-app.js'></script><script>
-const auth=document.getElementById('auth'),dash=document.getElementById('dash');let activeKey='';
+<!doctype html><html><head><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'><title>Admin Portal</title><link rel='stylesheet' href='/assets/hoa-style.css'></head><body><div class='container'><h1>Admin Portal</h1><p class='help'>Designed for non-technical updates. Use simple forms below and click <strong>Save All Changes</strong>.</p><div id='auth' class='card'><p>Enter admin PIN</p><input id='pin' type='password'><button id='login'>Login</button></div><div id='dash' style='display:none'></div></div><script src='/assets/hoa-app.js'></script><script>
+const auth=document.getElementById('auth'),dash=document.getElementById('dash');
+let workingData=null;
+
+const blank={
+  board:{role:'',name:'',description:''},
+  committee:{name:'',description:''},
+  event:{id:'',title:'',datetime:'',location:'',description:'',image:'',rsvpLink:'#'},
+  project:{id:'',name:'',status:'Planned',description:'',documents:[]},
+  resource:{title:'',url:''},
+  mapLot:{id:'',address:'',lat:'',lng:''}
+};
+
+function uid(prefix){return `${prefix}-${Date.now()}-${Math.floor(Math.random()*1000)}`;}
+function escapeHtml(str=''){return String(str).replace(/[&<>"]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m]));}
+function clone(v){return JSON.parse(JSON.stringify(v));}
+function ensureDefaults(d){
+  d.about=d.about||{boardMembers:[],committees:[]};
+  d.about.boardMembers=d.about.boardMembers||[];
+  d.about.committees=d.about.committees||[];
+  d.events=d.events||[]; d.projects=d.projects||[]; d.resources=d.resources||[]; d.mapLots=d.mapLots||[];
+  d.contacts=d.contacts||[]; d.subscribers=d.subscribers||[]; d.rsvps=d.rsvps||[];
+}
+
+async function handleFileToDataUrl(input,cb){
+  const f=input.files&&input.files[0]; if(!f) return;
+  const r=new FileReader();
+  r.onload=()=>cb(r.result,f.name);
+  r.readAsDataURL(f);
+}
+
+async function render(){
+  workingData=await BWC.getData(); ensureDefaults(workingData);
+  dash.innerHTML=`
+    <div class='card'>
+      <h2>Publish Changes</h2>
+      <p class='help'>Save regularly while editing. Export creates a backup file.</p>
+      <div class='grid two'>
+        <button id='saveAll'>Save All Changes</button>
+        <button id='resetData' class='secondary'>Reload Without Saving</button>
+        <button id='exportBtn'>Export Backup (.json)</button>
+        <label class='buttonlike secondary'>Import Backup (.json)<input id='importInput' type='file' accept='application/json' hidden></label>
+      </div>
+    </div>
+    <div class='card'><h2>About Page</h2><div id='aboutEditor'></div></div>
+    <div class='card'><h2>Upcoming Events</h2><div id='eventsEditor'></div></div>
+    <div class='card'><h2>Neighborhood Projects</h2><div id='projectsEditor'></div></div>
+    <div class='card'><h2>Helpful Resources</h2><div id='resourcesEditor'></div></div>
+    <div class='card'><h2>Neighborhood Map Lots</h2><div id='lotsEditor'></div></div>
+    <div class='card'><h2>Resident Submissions</h2><p>Contacts: ${workingData.contacts.length} | Subscribers: ${workingData.subscribers.length} | RSVPs: ${workingData.rsvps.length}</p></div>`;
+
+  drawAbout(); drawEvents(); drawProjects(); drawResources(); drawLots();
+  wireGlobalActions();
+}
+
+function wireGlobalActions(){
+  document.getElementById('saveAll').onclick=()=>{BWC.saveData(workingData);alert('All changes saved.');};
+  document.getElementById('resetData').onclick=()=>render();
+  document.getElementById('exportBtn').onclick=()=>{
+    const a=document.createElement('a');
+    a.href=URL.createObjectURL(new Blob([JSON.stringify(workingData,null,2)],{type:'application/json'}));
+    a.download=`hoa-backup-${new Date().toISOString().slice(0,10)}.json`;a.click();
+  };
+  document.getElementById('importInput').onchange=async(e)=>{
+    const file=e.target.files[0]; if(!file) return;
+    const text=await file.text();
+    try{const parsed=JSON.parse(text); ensureDefaults(parsed); workingData=parsed; alert('Backup imported. Remember to click Save All Changes.'); renderWithCurrent();}
+    catch{alert('That file is not valid JSON.');}
+  };
+}
+function renderWithCurrent(){ drawAbout(); drawEvents(); drawProjects(); drawResources(); drawLots(); }
+
+function drawAbout(){
+  const box=document.getElementById('aboutEditor');
+  box.innerHTML=`<h3>Board Members</h3>${workingData.about.boardMembers.map((m,i)=>`<div class='item'><input data-k='role' data-i='${i}' data-g='board' value='${escapeHtml(m.role)}' placeholder='Role'><input data-k='name' data-i='${i}' data-g='board' value='${escapeHtml(m.name)}' placeholder='Name'><textarea data-k='description' data-i='${i}' data-g='board' placeholder='Description'>${escapeHtml(m.description)}</textarea><button class='secondary danger' data-del='board' data-i='${i}'>Remove</button></div>`).join('')}<button id='addBoard'>+ Add Board Member</button><h3>Committees</h3>${workingData.about.committees.map((c,i)=>`<div class='item'><input data-k='name' data-i='${i}' data-g='committee' value='${escapeHtml(c.name)}' placeholder='Committee name'><textarea data-k='description' data-i='${i}' data-g='committee' placeholder='Description'>${escapeHtml(c.description)}</textarea><button class='secondary danger' data-del='committee' data-i='${i}'>Remove</button></div>`).join('')}<button id='addCommittee'>+ Add Committee</button>`;
+  box.querySelectorAll('[data-g]').forEach(el=>el.oninput=(e)=>{const {g,i,k}=e.target.dataset; const v=e.target.value; (g==='board'?workingData.about.boardMembers:workingData.about.committees)[+i][k]=v;});
+  box.querySelectorAll('[data-del]').forEach(el=>el.onclick=()=>{const i=+el.dataset.i; if(el.dataset.del==='board') workingData.about.boardMembers.splice(i,1); else workingData.about.committees.splice(i,1); drawAbout();});
+  document.getElementById('addBoard').onclick=()=>{workingData.about.boardMembers.push(clone(blank.board));drawAbout();};
+  document.getElementById('addCommittee').onclick=()=>{workingData.about.committees.push(clone(blank.committee));drawAbout();};
+}
+
+function drawEvents(){
+  const box=document.getElementById('eventsEditor');
+  box.innerHTML=workingData.events.map((ev,i)=>`<div class='item'><input value='${escapeHtml(ev.title)}' data-i='${i}' data-k='title' placeholder='Event title'><input type='datetime-local' value='${escapeHtml(ev.datetime||'')}' data-i='${i}' data-k='datetime'><input value='${escapeHtml(ev.location)}' data-i='${i}' data-k='location' placeholder='Location'><textarea data-i='${i}' data-k='description' placeholder='Description'>${escapeHtml(ev.description)}</textarea><input value='${escapeHtml(ev.rsvpLink||'#')}' data-i='${i}' data-k='rsvpLink' placeholder='RSVP link'><label>Event image URL</label><input value='${escapeHtml(ev.image||'')}' data-i='${i}' data-k='image' placeholder='/wp-content/uploads/...'><label class='buttonlike'>Upload Event Image<input type='file' accept='image/*' data-upload='event' data-i='${i}' hidden></label>${ev.image?`<img class='hero' src='${escapeHtml(BWC.normalizeAssetUrl(ev.image))}' alt='Preview'>`:''}<button class='secondary danger' data-del='${i}'>Remove Event</button></div>`).join('')+"<button id='addEvent'>+ Add Event</button>";
+  box.querySelectorAll('[data-k]').forEach(el=>el.oninput=(e)=>{workingData.events[+e.target.dataset.i][e.target.dataset.k]=e.target.value;});
+  box.querySelectorAll('[data-del]').forEach(el=>el.onclick=()=>{workingData.events.splice(+el.dataset.del,1);drawEvents();});
+  box.querySelectorAll('[data-upload="event"]').forEach(el=>el.onchange=()=>handleFileToDataUrl(el,(result,name)=>{const row=workingData.events[+el.dataset.i];row.image=result; if(!row.title) row.title=name; drawEvents();}));
+  document.getElementById('addEvent').onclick=()=>{const item=clone(blank.event);item.id=uid('evt');workingData.events.push(item);drawEvents();};
+}
+
+function drawProjects(){
+  const box=document.getElementById('projectsEditor');
+  box.innerHTML=workingData.projects.map((p,i)=>`<div class='item'><input value='${escapeHtml(p.name)}' data-i='${i}' data-k='name' placeholder='Project name'><select data-i='${i}' data-k='status'><option ${p.status==='Planned'?'selected':''}>Planned</option><option ${p.status==='In Progress'?'selected':''}>In Progress</option><option ${p.status==='Complete'?'selected':''}>Complete</option></select><textarea data-i='${i}' data-k='description' placeholder='Description'>${escapeHtml(p.description)}</textarea><h4>Documents</h4>${(p.documents||[]).map((d,di)=>`<div class='grid two'><input value='${escapeHtml(d.label||'')}' data-i='${i}' data-doc='${di}' data-k='label' placeholder='Document label'><input value='${escapeHtml(d.url||'')}' data-i='${i}' data-doc='${di}' data-k='url' placeholder='Document URL'><button class='secondary danger' data-dropdoc='${i}' data-doc='${di}'>Remove Document</button></div>`).join('')}<label class='buttonlike secondary'>Upload Document<input type='file' data-upload='doc' data-i='${i}' hidden></label><button class='secondary' data-adddoc='${i}'>+ Add Document Link</button><button class='secondary danger' data-delproj='${i}'>Remove Project</button></div>`).join('')+"<button id='addProject'>+ Add Project</button>";
+  box.querySelectorAll('[data-k]').forEach(el=>el.oninput=(e)=>{const {i,k,doc}=e.target.dataset; if(doc!==undefined){workingData.projects[+i].documents[+doc][k]=e.target.value;} else {workingData.projects[+i][k]=e.target.value;}});
+  box.querySelectorAll('[data-adddoc]').forEach(el=>el.onclick=()=>{const p=workingData.projects[+el.dataset.adddoc];p.documents=p.documents||[];p.documents.push({label:'',url:''});drawProjects();});
+  box.querySelectorAll('[data-dropdoc]').forEach(el=>el.onclick=()=>{workingData.projects[+el.dataset.dropdoc].documents.splice(+el.dataset.doc,1);drawProjects();});
+  box.querySelectorAll('[data-upload="doc"]').forEach(el=>el.onchange=()=>handleFileToDataUrl(el,(result,name)=>{const p=workingData.projects[+el.dataset.i];p.documents=p.documents||[];p.documents.push({label:name,url:result});drawProjects();}));
+  box.querySelectorAll('[data-delproj]').forEach(el=>el.onclick=()=>{workingData.projects.splice(+el.dataset.delproj,1);drawProjects();});
+  document.getElementById('addProject').onclick=()=>{const item=clone(blank.project);item.id=uid('prj');workingData.projects.push(item);drawProjects();};
+}
+
+function drawResources(){ const box=document.getElementById('resourcesEditor'); box.innerHTML=workingData.resources.map((r,i)=>`<div class='item grid two'><input value='${escapeHtml(r.title)}' data-i='${i}' data-k='title' placeholder='Title'><input value='${escapeHtml(r.url)}' data-i='${i}' data-k='url' placeholder='URL'><button class='secondary danger' data-del='${i}'>Remove</button></div>`).join('')+"<button id='addRes'>+ Add Resource</button>"; box.querySelectorAll('[data-k]').forEach(el=>el.oninput=(e)=>workingData.resources[+e.target.dataset.i][e.target.dataset.k]=e.target.value); box.querySelectorAll('[data-del]').forEach(el=>el.onclick=()=>{workingData.resources.splice(+el.dataset.del,1);drawResources();}); document.getElementById('addRes').onclick=()=>{workingData.resources.push(clone(blank.resource));drawResources();}; }
+function drawLots(){ const box=document.getElementById('lotsEditor'); box.innerHTML=workingData.mapLots.map((l,i)=>`<div class='item grid two'><input value='${escapeHtml(l.address)}' data-i='${i}' data-k='address' placeholder='Address'><input value='${escapeHtml(l.lat)}' data-i='${i}' data-k='lat' type='number' step='0.000001' placeholder='Latitude'><input value='${escapeHtml(l.lng)}' data-i='${i}' data-k='lng' type='number' step='0.000001' placeholder='Longitude'><button class='secondary danger' data-del='${i}'>Remove</button></div>`).join('')+"<button id='addLot'>+ Add Lot</button>"; box.querySelectorAll('[data-k]').forEach(el=>el.oninput=(e)=>{const i=+e.target.dataset.i,k=e.target.dataset.k; workingData.mapLots[i][k]=(k==='lat'||k==='lng')?Number(e.target.value):e.target.value;}); box.querySelectorAll('[data-del]').forEach(el=>el.onclick=()=>{workingData.mapLots.splice(+el.dataset.del,1);drawLots();}); document.getElementById('addLot').onclick=()=>{const lot=clone(blank.mapLot); lot.id=uid('lot'); workingData.mapLots.push(lot);drawLots();}; }
+
 document.getElementById('login').onclick=async()=>{if(document.getElementById('pin').value!==BWC.defaultPin){alert('Invalid PIN');return;}auth.style.display='none';dash.style.display='block';render();};
-async function render(){const d=await BWC.getData();dash.innerHTML=`<div class='card'><h2>Content Editor</h2><p>Open each section in a modal editor.</p><div class='grid two'><button onclick='openModal("about","About Us")'>Edit About Us</button><button onclick='openModal("events","Events")'>Edit Events</button><button onclick='openModal("projects","Projects")'>Edit Projects</button><button onclick='openModal("resources","Resources")'>Edit Resources</button><button onclick='openModal("mapLots","Map Lots")'>Edit Map Lots</button></div></div><div class='card'><h2>Resident Submissions</h2><p>Contacts: ${d.contacts.length} | Subscribers: ${d.subscribers.length} | RSVPs: ${d.rsvps.length}</p></div>`;}
-window.openModal=async(key,label)=>{const d=await BWC.getData();activeKey=key;document.getElementById('modalTitle').textContent='Edit '+label;document.getElementById('modalText').value=JSON.stringify(d[key],null,2);document.getElementById('editorModal').classList.add('open');};
-window.closeModal=()=>document.getElementById('editorModal').classList.remove('open');
-window.saveModal=async()=>{const d=await BWC.getData();try{d[activeKey]=JSON.parse(document.getElementById('modalText').value);BWC.saveData(d);alert('Saved');closeModal();render();}catch(e){alert('Invalid JSON');}};
 </script></body></html>
