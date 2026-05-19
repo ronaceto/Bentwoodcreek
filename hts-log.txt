@@ -1,0 +1,45 @@
+HTTrack3.49-2+htsswf+htsjava launched on Tue, 19 May 2026 10:14:52 at http://www.bentwoodcreek.org/
+(winhttrack -qwC2%Ps2u1%s%uN0%I0p3DaK0H0%kf2A25000%f#f -F "Mozilla/4.5 (compatible; HTTrack 3.0x; Windows 98)" -%F "<!-- Mirrored from %s%s by HTTrack Website Copier/3.x [XR&CO'2014], %s -->" -%l "en, *" http://www.bentwoodcreek.org/ -O1 "C:\Dev\Bentwood Creek" )
+
+Information, Warnings and Errors reported for this mirror:
+note:	the hts-log.txt file, and hts-cache folder, may contain sensitive information,
+	such as username/password authentication for websites mirrored in this project
+	do not share these files/folders if you want these information to remain private
+
+10:14:53	Warning: 	Note: due to www.bentwoodcreek.org remote robots.txt rules, links beginning with these path will be forbidden: /wp-admin/ (see in the options to disable this)
+10:17:22	Error: 	"Method Not Allowed" (405) at link www.bentwoodcreek.org/xmlrpc.php (from www.bentwoodcreek.org/)
+10:23:05	Error: 	"Forbidden" (403) at link www.bentwoodcreek.org/wp-content/themes/CherryFramework/admin/data_management/ (from www.bentwoodcreek.org/)
+10:23:05	Error: 	"Forbidden" (403) at link www.bentwoodcreek.org/wp-content/themes/theme51770/ (from www.bentwoodcreek.org/)
+10:23:05	Warning: 	Retry after error 500 (Internal Server Error) at link www.bentwoodcreek.org/wp-content/themes/CherryFramework/ (from www.bentwoodcreek.org/)
+10:26:46	Warning: 	Retry after error -4 (No data (connection closed)) at link www.bentwoodcreek.org/wp-content/uploads/2015/01/BentwoodCreekArchitecturalControls.pdf (from www.bentwoodcreek.org/)
+10:39:00	Warning: 	file not stored in cache due to bogus state (broken size, expected 15880496 got 12763802): www.bentwoodcreek.org/wp-content/uploads/2015/01/BentwoodCreekCovenants.pdf
+10:39:01	Warning: 	Retry after error -4 (Incorrect length (12763802 Bytes, 15880496 expected)) at link www.bentwoodcreek.org/wp-content/uploads/2015/01/BentwoodCreekCovenants.pdf (from www.bentwoodcreek.org/)
+10:39:07	Error: 	"Not Found" (404) at link www.bentwoodcreek.org/static/static-footer-text.php (from www.bentwoodcreek.org/)
+10:39:07	Error: 	"Not Found" (404) at link www.bentwoodcreek.org/static/static-footer-nav.php (from www.bentwoodcreek.org/)
+10:39:07	Error: 	"Not Found" (404) at link www.bentwoodcreek.org/wp-content/themes/CherryFramework/images/patterns/overlay1.png (from www.bentwoodcreek.org/wp-content/themes/CherryFramework/css/camera.css)
+10:39:07	Error: 	"Not Found" (404) at link www.bentwoodcreek.org/wp-content/themes/CherryFramework/images/patterns/overlay2.png (from www.bentwoodcreek.org/wp-content/themes/CherryFramework/css/camera.css)
+10:39:07	Error: 	"Not Found" (404) at link www.bentwoodcreek.org/wp-content/themes/CherryFramework/images/patterns/overlay3.png (from www.bentwoodcreek.org/wp-content/themes/CherryFramework/css/camera.css)
+10:39:07	Error: 	"Not Found" (404) at link www.bentwoodcreek.org/wp-content/themes/CherryFramework/images/patterns/overlay4.png (from www.bentwoodcreek.org/wp-content/themes/CherryFramework/css/camera.css)
+10:39:07	Error: 	"Not Found" (404) at link www.bentwoodcreek.org/wp-content/themes/CherryFramework/images/patterns/overlay5.png (from www.bentwoodcreek.org/wp-content/themes/CherryFramework/css/camera.css)
+10:39:07	Error: 	"Not Found" (404) at link www.bentwoodcreek.org/wp-content/themes/CherryFramework/images/patterns/overlay6.png (from www.bentwoodcreek.org/wp-content/themes/CherryFramework/css/camera.css)
+10:39:07	Error: 	"Not Found" (404) at link www.bentwoodcreek.org/wp-content/themes/CherryFramework/images/patterns/overlay7.png (from www.bentwoodcreek.org/wp-content/themes/CherryFramework/css/camera.css)
+10:39:07	Error: 	"Not Found" (404) at link www.bentwoodcreek.org/wp-content/themes/CherryFramework/images/patterns/overlay8.png (from www.bentwoodcreek.org/wp-content/themes/CherryFramework/css/camera.css)
+10:39:07	Error: 	"Not Found" (404) at link www.bentwoodcreek.org/wp-content/themes/CherryFramework/images/patterns/overlay9.png (from www.bentwoodcreek.org/wp-content/themes/CherryFramework/css/camera.css)
+10:39:07	Error: 	"Not Found" (404) at link www.bentwoodcreek.org/wp-content/themes/CherryFramework/images/patterns/overlay10.png (from www.bentwoodcreek.org/wp-content/themes/CherryFramework/css/camera.css)
+10:39:07	Warning: 	Retry after error 500 (Internal Server Error) at link www.bentwoodcreek.org/wp-content/themes/CherryFramework/ (from www.bentwoodcreek.org/)
+10:39:07	Error: 	"Not Found" (404) at link www.bentwoodcreek.org/about/static/static-footer-text.php (from www.bentwoodcreek.org/about/)
+10:39:07	Error: 	"Not Found" (404) at link www.bentwoodcreek.org/about/static/static-footer-nav.php (from www.bentwoodcreek.org/about/)
+10:39:07	Error: 	"Not Found" (404) at link www.bentwoodcreek.org/welcome-to-the-neighborhood/static/static-footer-text.php (from www.bentwoodcreek.org/welcome-to-the-neighborhood/)
+10:39:07	Error: 	"Not Found" (404) at link www.bentwoodcreek.org/welcome-to-the-neighborhood/static/static-footer-nav.php (from www.bentwoodcreek.org/welcome-to-the-neighborhood/)
+10:39:07	Error: 	"Not Found" (404) at link www.bentwoodcreek.org/quick-reference/sidebar.php (from www.bentwoodcreek.org/quick-reference/)
+10:39:07	Error: 	"Not Found" (404) at link www.bentwoodcreek.org/quick-reference/static/static-footer-text.php (from www.bentwoodcreek.org/quick-reference/)
+10:39:07	Error: 	"Not Found" (404) at link www.bentwoodcreek.org/quick-reference/static/static-footer-nav.php (from www.bentwoodcreek.org/quick-reference/)
+10:39:07	Error: 	"Not Found" (404) at link www.bentwoodcreek.org/reminders-alerts/static/static-footer-text.php (from www.bentwoodcreek.org/reminders-alerts/)
+10:39:07	Error: 	"Not Found" (404) at link www.bentwoodcreek.org/reminders-alerts/static/static-footer-nav.php (from www.bentwoodcreek.org/reminders-alerts/)
+10:39:07	Error: 	"Not Found" (404) at link www.bentwoodcreek.org/safety-security/sidebar.php (from www.bentwoodcreek.org/safety-security/)
+10:39:07	Error: 	"Not Found" (404) at link www.bentwoodcreek.org/safety-security/static/static-footer-text.php (from www.bentwoodcreek.org/safety-security/)
+10:39:07	Error: 	"Not Found" (404) at link www.bentwoodcreek.org/safety-security/static/static-footer-nav.php (from www.bentwoodcreek.org/safety-security/)
+10:41:12	Error: 	"Internal Server Error" (500) after 2 retries at link www.bentwoodcreek.org/wp-content/themes/CherryFramework/ (from www.bentwoodcreek.org/)
+
+HTTrack Website Copier/3.49-2 mirror complete in 26 minutes 20 seconds : 228 links scanned, 195 files written (38555672 bytes overall) [39111791 bytes received at 24754 bytes/sec], 418561 bytes transferred using HTTP compression in 11 files, ratio 23%, 10.0 requests per connection
+(28 errors, 6 warnings, 0 messages)
