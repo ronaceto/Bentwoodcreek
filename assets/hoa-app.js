@@ -6,8 +6,9 @@ async function getData(){ let data=localStorage.getItem(KEY); if(data) return JS
 function saveData(d){ localStorage.setItem(KEY,JSON.stringify(d)); }
 function normalizeAssetUrl(path){
   if(!path) return '';
-  if(/^https?:\/\//i.test(path) || path.startsWith('/')) return path;
-  return '/' + path.replace(/^\.\/?/, '').replace(/^\/+/, '');
+  const clean=String(path).trim().replace(/\\/g,'/');
+  if(/^https?:\/\//i.test(clean) || clean.startsWith('/')) return encodeURI(clean);
+  return encodeURI('/' + clean.replace(/^\.\/?/, '').replace(/^\/+/, ''));
 }
 window.BWC={getData,saveData,defaultPin,normalizeAssetUrl};
 })();

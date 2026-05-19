@@ -1,28 +1,75 @@
 {
   "about": {
     "boardMembers": [
-      {"role":"President","name":"Alex Morgan","description":"Leads board meetings and oversees neighborhood planning."},
-      {"role":"Treasurer","name":"Taylor Reed","description":"Manages HOA budget, dues reporting, and annual audit prep."}
+      {
+        "role": "President",
+        "name": "Alex Morgan",
+        "description": "Leads board meetings and oversees neighborhood planning."
+      },
+      {
+        "role": "Treasurer",
+        "name": "Taylor Reed",
+        "description": "Manages HOA budget, dues reporting, and annual audit prep."
+      }
     ],
     "committees": [
-      {"name":"Landscape Committee","description":"Coordinates seasonal planting, irrigation checks, and volunteer cleanups."}
+      {
+        "name": "Landscape Committee",
+        "description": "Coordinates seasonal planting, irrigation checks, and volunteer cleanups."
+      }
     ]
   },
   "events": [
-    {"id":"evt-1","title":"Summer Social","datetime":"2026-06-20T18:00","location":"Clubhouse Lawn","description":"Bring a side dish and meet new neighbors.","image":"wp-content/uploads/2015/10/pedit.jpg","rsvpLink":"#"}
+    {
+      "id": "evt-1",
+      "title": "Summer Social",
+      "datetime": "2026-06-20T18:00",
+      "location": "Clubhouse Lawn",
+      "description": "Bring a side dish and meet new neighbors.",
+      "image": "wp-content/uploads/2015/10/pedit.jpg",
+      "rsvpLink": "#"
+    }
   ],
   "projects": [
-    {"id":"prj-1","name":"Entrance Sign Refresh","status":"In Progress","description":"Replacing lighting and repainting the monument sign.","documents":[{"label":"Design PDF","url":"quick-reference/index.html"}]}
+    {
+      "id": "prj-1",
+      "name": "Entrance Sign Refresh",
+      "status": "In Progress",
+      "description": "Replacing lighting and repainting the monument sign.",
+      "documents": [
+        {
+          "label": "Design PDF",
+          "url": "quick-reference/index.html"
+        }
+      ]
+    }
   ],
   "resources": [
-    {"title":"HOA Quick Reference","url":"quick-reference/index.html"},
-    {"title":"Safety & Security","url":"safety-security/index.html"}
+    {
+      "title": "HOA Quick Reference",
+      "url": "quick-reference/index.html"
+    },
+    {
+      "title": "Safety & Security",
+      "url": "safety-security/index.html"
+    }
   ],
   "mapLots": [
-    {"id":"lot-1","address":"101 Bentwood Creek Dr","lat":35.922,"lng":-78.74},
-    {"id":"lot-2","address":"105 Bentwood Creek Dr","lat":35.9226,"lng":-78.7392}
+    {
+      "id": "lot-1",
+      "address": "101 Bentwood Creek Dr",
+      "lat": 35.922,
+      "lng": -78.74
+    },
+    {
+      "id": "lot-2",
+      "address": "105 Bentwood Creek Dr",
+      "lat": 35.9226,
+      "lng": -78.7392
+    }
   ],
   "subscribers": [],
   "contacts": [],
-  "rsvps": []
+  "rsvps": [],
+  "directory": []
 }
