@@ -78,7 +78,21 @@
         "id": "res-1",
         "name": "Alex Morgan",
         "email": "alex@example.com",
-        "status": "active"
+        "status": "active",
+        "role": "resident",
+        "address": "",
+        "directoryOptIn": false,
+        "passwordHash": "ca64a3560f4a8d16d8f6f2e2c63c8e972ac5d41f68e76f4a8b53a0ec8f4f6d94"
+      },
+      {
+        "id": "admin-1",
+        "name": "HOA Admin",
+        "email": "admin@bentwoodcreek.org",
+        "status": "active",
+        "role": "admin",
+        "address": "Clubhouse",
+        "directoryOptIn": false,
+        "passwordHash": "8f1170a5f8e98a8bfa9f3bbef4f4169fcd31c8436f641f95358f5ef12dcd75a8"
       }
     ],
     "dues": {
@@ -120,6 +134,8 @@
         "type": "Maintenance",
         "status": "Submitted"
       }
-    ]
+    ],
+    "rsvps": [],
+    "auditLogs": []
   }
 }
