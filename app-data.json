@@ -71,5 +71,55 @@
   "subscribers": [],
   "contacts": [],
   "rsvps": [],
-  "directory": []
+  "directory": [],
+  "portal": {
+    "residents": [
+      {
+        "id": "res-1",
+        "name": "Alex Morgan",
+        "email": "alex@example.com",
+        "status": "active"
+      }
+    ],
+    "dues": {
+      "currentBalance": 125.0,
+      "nextAssessmentDate": "2026-07-01"
+    },
+    "announcements": [
+      {
+        "id": "ann-1",
+        "title": "Board Meeting Agenda Posted",
+        "date": "2026-05-18"
+      },
+      {
+        "id": "ann-2",
+        "title": "Pool Opening This Weekend",
+        "date": "2026-05-17"
+      }
+    ],
+    "documents": [
+      {
+        "id": "doc-1",
+        "name": "2026 Budget Summary.pdf",
+        "category": "Budget"
+      },
+      {
+        "id": "doc-2",
+        "name": "Architectural Guidelines.pdf",
+        "category": "Guidelines"
+      }
+    ],
+    "requests": [
+      {
+        "caseNumber": "ARC-1001",
+        "type": "Architectural Change",
+        "status": "Under Review"
+      },
+      {
+        "caseNumber": "MNT-2044",
+        "type": "Maintenance",
+        "status": "Submitted"
+      }
+    ]
+  }
 }
