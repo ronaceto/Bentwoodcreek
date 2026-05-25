@@ -4,11 +4,37 @@ const memoryStore = {};
 const storage = (()=>{ try{ const s=root.localStorage; const t='bwcStorageTest'; s.setItem(t,t); s.removeItem(t); return s; }catch{ return {getItem:k=>memoryStore[k]||null,setItem:(k,v)=>{memoryStore[k]=String(v);},removeItem:k=>{delete memoryStore[k];}}; } })();
 const KEY='bwcDataV3';
 const SESSION='bwcSessionV1';
+const API='/api/hoa-data';
 const defaultPin = '2468';
 
 async function loadSeed(){ const r=await fetch('/app-data.json'); return r.json(); }
+async function remoteGet(){
+  try{
+    const r=await fetch(API,{method:'GET',headers:{accept:'application/json'},cache:'no-store'});
+    if(!r.ok) return null;
+    const payload=await r.json();
+    return payload&&payload.ok?payload.data:null;
+  }catch{
+    return null;
+  }
+}
+async function remoteSave(d){
+  try{
+    const r=await fetch(API,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({action:'save',data:d})});
+    return r.ok;
+  }catch{
+    return false;
+  }
+}
 async function getData(){
   const seed=await loadSeed();
+  const remote=await remoteGet();
+  if(remote){
+    ensurePortal(remote);
+    normalizeResidents(remote);
+    storage.setItem(KEY,JSON.stringify(remote));
+    return remote;
+  }
   const raw=storage.getItem(KEY);
   if(raw){
     let data;
@@ -47,9 +73,10 @@ async function getData(){
   ensurePortal(seed);
   normalizeResidents(seed);
   storage.setItem(KEY,JSON.stringify(seed));
+  remoteSave(seed);
   return seed;
 }
-function saveData(d){ storage.setItem(KEY,JSON.stringify(d)); }
+function saveData(d){ storage.setItem(KEY,JSON.stringify(d)); return remoteSave(d); }
 function normalizeAssetUrl(path){ if(!path) return ''; const clean=String(path).trim().replace(/\\/g,'/'); if(/^https?:\/\//i.test(clean)||clean.startsWith('/')) return encodeURI(clean); return encodeURI('/'+clean.replace(/^\.\/?/,'').replace(/^\/+/,'')); }
 
 function sanitize(v,max=160){ return String(v||'').trim().replace(/[<>]/g,'').slice(0,max); }
@@ -109,7 +136,7 @@ async function registerResident(payload){
   })).filter(contact=>contact.name||contact.phone||contact.email):[];
   const rec={id:uid('res'),name,email,phone,address,lot,parcel,status:'pending',role:'resident',directoryOptIn:!!payload.directoryOptIn,householdContacts,passwordHash:await sha256(password),createdAt:new Date().toISOString()};
   normalizeHouseholdContacts(rec);
-  d.portal.residents.push(rec); logAction(d,rec.id,'resident.registered',email); saveData(d); return rec;
+  d.portal.residents.push(rec); logAction(d,rec.id,'resident.registered',email); await saveData(d); return rec;
 }
 
 async function loginResident(email,password){
@@ -119,7 +146,7 @@ async function loginResident(email,password){
   const resident=d.portal.residents.find(r=>String(r.email).toLowerCase()===target && r.passwordHash===hash);
   if(!resident) throw new Error('Invalid credentials.');
   storage.setItem(SESSION,JSON.stringify({residentId:resident.id,role:resident.role||'resident',ts:Date.now()}));
-  logAction(d,resident.id,'auth.login','Login successful'); saveData(d); return resident;
+  logAction(d,resident.id,'auth.login','Login successful'); await saveData(d); return resident;
 }
 function logout(){ storage.removeItem(SESSION); }
 async function removeCurrentResident(){
@@ -127,7 +154,7 @@ async function removeCurrentResident(){
   if(!resident) throw new Error('No resident is signed in.');
   const d=await getData();
   removeResidentFromData(d,resident.id,resident.id);
-  saveData(d);
+  await saveData(d);
   logout();
   return true;
 }
