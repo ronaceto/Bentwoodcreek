@@ -1,4 +1,5 @@
 const EXPECTED_TOKEN = 'REPLACE_WITH_LONG_RANDOM_TOKEN';
+const SPREADSHEET_ID = '1ai9SncQwuchov4HyiuDBFnTUirgexUwIWMPnm2WsCPk';
 
 const TABS = {
   residents: ['id','name','email','phone','status','role','address','lot','parcel','directoryOptIn','passwordHash','householdContacts','createdAt','approvedAt'],
@@ -28,14 +29,14 @@ function doGet() {
 }
 
 function loadState() {
-  const sheet = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = SpreadsheetApp.openById(SPREADSHEET_ID);
   const state = sheet.getSheetByName('app_state');
   if (!state || !state.getRange('A2').getValue()) return null;
   return JSON.parse(state.getRange('A2').getValue());
 }
 
 function saveState(data) {
-  const sheet = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = SpreadsheetApp.openById(SPREADSHEET_ID);
   writeStateSheet(sheet, data);
   writeRows(sheet, 'residents', TABS.residents, (((data.portal || {}).residents) || []));
   writeRows(sheet, 'requests', TABS.requests, (((data.portal || {}).requests) || []));

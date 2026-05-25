@@ -5,15 +5,22 @@ https://docs.google.com/spreadsheets/d/1ai9SncQwuchov4HyiuDBFnTUirgexUwIWMPnm2Ws
 
 ## Setup
 
-1. Open the Sheet while signed in as `bentwoodcreek1@gmail.com`.
-2. Go to **Extensions > Apps Script**.
+If **Extensions > Apps Script** gives a Google Drive error, use this standalone path:
+
+1. Go to https://script.google.com/home/projects/create while signed in as `bentwoodcreek1@gmail.com`.
+2. Name the project `Bentwood Creek HOA Portal Data API`.
 3. Replace the script contents with `google-apps-script/Code.gs`.
 4. Change `EXPECTED_TOKEN` to a long random value.
-5. Click **Deploy > New deployment**.
-6. Select **Web app**.
-7. Execute as: **Me**.
-8. Who has access: **Anyone**.
-9. Copy the Web App URL.
+5. Save the project.
+6. Click **Deploy > New deployment**.
+7. Select **Web app**.
+8. Execute as: **Me**.
+9. Who has access: **Anyone**.
+10. Approve the permissions when Google asks.
+11. Copy the Web App URL.
+
+The script uses this Sheet ID directly:
+`1ai9SncQwuchov4HyiuDBFnTUirgexUwIWMPnm2WsCPk`
 
 ## Netlify Environment Variables
 
