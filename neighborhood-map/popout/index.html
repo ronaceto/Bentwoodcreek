@@ -3,11 +3,11 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>Neighborhood Map</title>
+  <title>Large Neighborhood Map</title>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
   <link rel="stylesheet" href="/assets/hoa-style.css?v=map-popout">
 </head>
-<body>
+<body class="map-popout-page">
   <nav class="site-top" aria-label="Primary navigation">
   <div class="site-top-inner">
     <a class="site-home" href="/" aria-label="Home">&#8962;</a>
@@ -31,19 +31,19 @@
     <div class="site-session"><span id="siteTopUser"></span><button id="siteTopLogout" type="button">Logout</button></div>
   </div>
 </nav>
-  <main class="container map-page">
+  <main class="container map-page map-page-wide">
     <header class="map-header">
       <div>
-        <h1>Neighborhood Map</h1>
-        <p class="help">Hover or tap a lot to view address, parcel details, and property links.</p>
+        <h1>Large Neighborhood Map</h1>
+        <p class="help">Use the larger map to zoom, pan, and select a lot.</p>
       </div>
       <div class="map-header-actions">
-        <a class="buttonlike secondary map-header-action" href="/neighborhood-map/popout/" target="_blank" rel="noopener noreferrer">Open Large Map</a>
+        <a class="buttonlike secondary map-header-action" href="/neighborhood-map/">Back to Map Page</a>
         <a class="buttonlike map-header-action" href="/resident-portal/">Resident Portal</a>
       </div>
     </header>
 
-    <section class="map-workspace">
+    <section class="map-workspace map-workspace-popout">
       <aside class="map-panel" aria-label="Lot lookup">
         <label for="lotSearch">Find a lot or address</label>
         <input id="lotSearch" type="search" placeholder="Lot, address, parcel">
@@ -51,7 +51,7 @@
         <div id="lotDetails" class="lot-details"></div>
         <div id="lotList" class="lot-list" aria-label="Neighborhood lots"></div>
       </aside>
-      <div id="map" class="parcel-map" aria-label="Interactive neighborhood parcel map"></div>
+      <div id="map" class="parcel-map parcel-map-popout" aria-label="Large interactive neighborhood parcel map"></div>
     </section>
   </main>
 

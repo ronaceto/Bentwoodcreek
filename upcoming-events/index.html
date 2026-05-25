@@ -1,3 +1,25 @@
-<!doctype html><html><head><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'><title>Upcoming Events</title><link rel='stylesheet' href='/assets/hoa-style.css'></head><body><div class='container'><h1>Upcoming Events</h1><div id='events'></div></div><script src='/assets/hoa-app.js'></script><script>
-(async()=>{const d=await BWC.getData();const box=document.getElementById('events');const events=[...d.events].sort((a,b)=>new Date(a.datetime)-new Date(b.datetime));if(!events.length){box.innerHTML="<p>No events scheduled right now.</p>";return;}box.innerHTML=events.map(e=>`<article class='card'>${e.image?`<img class='hero' src='${BWC.normalizeAssetUrl(e.image)}' alt='${e.title}'>`:''}<h2>${e.title}</h2><p><strong>${new Date(e.datetime).toLocaleString()}</strong><br>${e.location}</p><p>${e.description}</p><p><a href='${e.rsvpLink||"#"}'>Volunteer / RSVP link</a></p><form data-id='${e.id}'><h3>RSVP</h3><input name='name' placeholder='Name' required><input type='email' name='email' placeholder='Email' required><input name='attendees' type='number' min='1' value='1'><button>Submit RSVP</button></form></article>`).join('');box.querySelectorAll('form').forEach(f=>f.onsubmit=async(ev)=>{ev.preventDefault();const fd=new FormData(f);d.rsvps.push({eventId:f.dataset.id,name:fd.get('name'),email:fd.get('email'),attendees:+fd.get('attendees')});BWC.saveData(d);alert('RSVP saved');f.reset();});})();
+<!doctype html><html><head><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'><title>Upcoming Events</title><link rel='stylesheet' href='/assets/hoa-style.css'></head><body><nav class="site-top" aria-label="Primary navigation">
+  <div class="site-top-inner">
+    <a class="site-home" href="/" aria-label="Home">&#8962;</a>
+    <div class="site-menu">
+      <a href="/about/">About Us</a>
+      <div class="site-menu-links">
+        <a href="/about/">Our Association</a>
+        <a href="/welcome-to-the-neighborhood/">Welcome to the Neighborhood</a>
+        <a href="/welcome-new-homeowners/">New Homeowners</a>
+      </div>
+    </div>
+    <div class="site-menu">
+      <a href="/quick-reference/">Resources</a>
+      <div class="site-menu-links">
+        <a href="/neighborhood-map/">Neighborhood Map</a>
+        <a href="/resident-portal/">Resident Portal</a>
+        <a href="/quick-reference/">Quick Reference</a>
+      </div>
+    </div>
+    <a href="/contact/">Contacts</a>
+    <div class="site-session"><span id="siteTopUser"></span><button id="siteTopLogout" type="button">Logout</button></div>
+  </div>
+</nav><div class='container'><h1>Upcoming Events</h1><div id='events'></div></div><script src='/assets/hoa-app.js'></script><script>
+(async()=>{await BWC.wireSiteNav();const d=await BWC.getData();const box=document.getElementById('events');const events=[...d.events].sort((a,b)=>new Date(a.datetime)-new Date(b.datetime));if(!events.length){box.innerHTML="<p>No events scheduled right now.</p>";return;}box.innerHTML=events.map(e=>`<article class='card'>${e.image?`<img class='hero' src='${BWC.normalizeAssetUrl(e.image)}' alt='${e.title}'>`:''}<h2>${e.title}</h2><p><strong>${new Date(e.datetime).toLocaleString()}</strong><br>${e.location}</p><p>${e.description}</p><p><a href='${e.rsvpLink||"#"}'>Volunteer / RSVP link</a></p><form data-id='${e.id}'><h3>RSVP</h3><input name='name' placeholder='Name' required><input type='email' name='email' placeholder='Email' required><input name='attendees' type='number' min='1' value='1'><button>Submit RSVP</button></form></article>`).join('');box.querySelectorAll('form').forEach(f=>f.onsubmit=async(ev)=>{ev.preventDefault();const fd=new FormData(f);d.rsvps.push({eventId:f.dataset.id,name:fd.get('name'),email:fd.get('email'),attendees:+fd.get('attendees')});BWC.saveData(d);alert('RSVP saved');f.reset();});})();
 </script></body></html>

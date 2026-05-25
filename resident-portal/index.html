@@ -4,24 +4,58 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Bentwood Creek Resident Portal MVP</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
   <link rel="stylesheet" href="/assets/hoa-style.css" />
 </head>
 <body>
+<nav class="site-top" aria-label="Primary navigation">
+  <div class="site-top-inner">
+    <a class="site-home" href="/" aria-label="Home">&#8962;</a>
+    <div class="site-menu">
+      <a href="/about/">About Us</a>
+      <div class="site-menu-links">
+        <a href="/about/">Our Association</a>
+        <a href="/welcome-to-the-neighborhood/">Welcome to the Neighborhood</a>
+        <a href="/welcome-new-homeowners/">New Homeowners</a>
+      </div>
+    </div>
+    <div class="site-menu">
+      <a href="/quick-reference/">Resources</a>
+      <div class="site-menu-links">
+        <a href="/neighborhood-map/">Neighborhood Map</a>
+        <a href="/resident-portal/">Resident Portal</a>
+        <a href="/quick-reference/">Quick Reference</a>
+      </div>
+    </div>
+    <a href="/contact/">Contacts</a>
+    <div class="site-session"><span id="siteTopUser"></span><button id="siteTopLogout" type="button">Logout</button></div>
+  </div>
+</nav>
 <main class="container">
   <section class="card"><h1>Resident Portal MVP (Rework)</h1><p class="help">Phase 1 rework: stronger validation, role gates, safer seed model, clearer admin workflows.</p></section>
   <section id="authCard" class="card"></section>
   <section id="portal" style="display:none"></section>
 </main>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="/assets/hoa-app.js"></script>
+<script src="/assets/neighborhood-map.js"></script>
 <script>
 const $=id=>document.getElementById(id);
 const card=(t,b)=>`<article class='card'><h2>${t}</h2>${b}</article>`;
+const escapeHtml=(value)=>String(value||'').replace(/[&<>"']/g,(char)=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
+let requestAttachment=null;
+const params=new URLSearchParams(location.search);
+const selectedLot=params.get('lot');
 
-function authView(){
-  $('authCard').innerHTML=`<h2>Sign in</h2><input id='email' placeholder='Email'><input id='password' type='password' placeholder='Password'><button id='login'>Login</button>
-  <h3>Request Resident Access</h3><input id='rname' placeholder='Full name'><input id='remail' placeholder='Email'><input id='raddress' placeholder='Property address'><input id='rpass' type='password' placeholder='Password (10+ chars)'><button id='register' class='secondary'>Submit for Approval</button>`;
+async function authView(){
+  const data=await BWC.getData();
+  const lot=(data.mapLots||[]).find(l=>String(l.lot)===String(selectedLot));
+  const address=lot?`${lot.address}, ${lot.city||'Collierville'}, ${lot.state||'TN'} ${lot.zip||'38017'}`:'';
+  const lotIntro=lot?`<div class='item'><strong>Registering for Lot ${lot.lot}</strong><br>${address}<br><small>Parcel ${lot.parcel}</small></div>`:'';
+  $('authCard').innerHTML=`<h2>Sign in</h2><p class='help'>Residents sign in here after approval. Admin approvals are also available from the PIN admin page.</p><input id='email' placeholder='Email'><input id='password' type='password' placeholder='Password'><button id='login'>Login</button>
+  <h3>Request Resident Access</h3>${lotIntro}<input id='rname' placeholder='Primary resident name'><input id='rphone' placeholder='Primary phone number'><input id='remail' placeholder='Primary email'><div class='grid two'><input id='rname2' placeholder='Additional household name'><input id='rphone2' placeholder='Additional phone number'></div><input id='remail2' placeholder='Additional email'><input id='raddress' placeholder='Property address' value='${escapeHtml(address)}'><label class='inline-check'><input id='rdir' type='checkbox' checked> Add my household to the resident directory after approval</label><input id='rpass' type='password' placeholder='Password (10+ chars)'><button id='register' class='secondary'>Submit for Approval</button>`;
   $('login').onclick=async()=>{ try{ await BWC.loginResident($('email').value,$('password').value); await render(); }catch(e){alert(e.message);} };
-  $('register').onclick=async()=>{ try{ await BWC.registerResident({name:$('rname').value,email:$('remail').value,address:$('raddress').value,password:$('rpass').value}); alert('Submitted. An admin must approve your account.'); }catch(e){alert(e.message);} };
+  $('register').onclick=async()=>{ try{ const rec=await BWC.registerResident({name:$('rname').value,phone:$('rphone').value,email:$('remail').value,address:$('raddress').value,lot:lot?.lot||'',parcel:lot?.parcel||'',directoryOptIn:$('rdir').checked,password:$('rpass').value,householdContacts:[{name:$('rname').value,phone:$('rphone').value,email:$('remail').value},{name:$('rname2').value,phone:$('rphone2').value,email:$('remail2').value}]}); $('authCard').innerHTML=`<h2>Submitted for Approval</h2><p><strong>${escapeHtml(rec.name)}</strong> is pending admin approval for ${escapeHtml(rec.address)}.</p><p class='help'>${rec.directoryOptIn?'After admin approval, this household will be added to the resident directory.':'This household will not appear in the directory unless directory opt-in is enabled later.'}</p><a class='buttonlike' href='/admin/'>Open Admin Approvals</a><a class='buttonlike secondary' href='/neighborhood-map/'>Back to Parcel Map</a>`; }catch(e){alert(e.message);} };
 }
 
 function renderPending(resident){
@@ -31,33 +65,65 @@ function renderPending(resident){
 
 async function render(){
   const resident=await BWC.getSessionResident();
-  if(!resident){ authView(); return; }
+  await BWC.wireSiteNav();
+  if(!resident){ await authView(); return; }
   $('authCard').style.display='none'; $('portal').style.display='block';
   if(resident.status!=='active') return renderPending(resident);
 
-  const data=await BWC.getData(); BWC.ensurePortal(data);
+  const data=await BWC.getData(); BWC.ensurePortal(data); BWC.normalizeResidents(data);
+  const currentResident=data.portal.residents.find(r=>r.id===resident.id)||resident;
   const announcements=data.portal.announcements.map(a=>`<li><strong>${a.title}</strong> <small>${a.date}</small></li>`).join('')||'<li>None</li>';
   const events=data.events.map(e=>`<li><strong>${e.title}</strong> ${e.datetime}<br><button data-rsvp='${e.id}'>RSVP Yes</button></li>`).join('')||'<li>None</li>';
-  const docs=data.portal.documents.map(d=>`<li>${d.name} (${d.category}) ${d.driveFileId?`<small>Drive ID: ${d.driveFileId}</small>`:''}</li>`).join('')||'<li>None</li>';
-  const myReq=(data.portal.requests||[]).filter(r=>r.residentId===resident.id).map(r=>`<li>#${r.caseNumber} ${r.type} — ${r.status}</li>`).join('')||'<li>No requests</li>';
-  const dir=(data.portal.residents||[]).filter(r=>r.status==='active'&&r.directoryOptIn).map(r=>`${r.name} (${r.address||'Address hidden'})`).join('<br>')||'No directory entries';
+  const docCategories=['Governing Documents','Architectural Review','Financial / Assessments','Meeting Minutes','Projects','Forms'];
+  const docs=docCategories.map(category=>{
+    const items=(data.portal.documents||[]).filter(d=>(d.category||'Forms')===category);
+    const body=items.length?items.map(d=>`
+      <article class='doc-item'>
+        <strong>${d.url?`<a href='${escapeHtml(d.url)}' target='_blank' rel='noopener noreferrer'>${escapeHtml(d.name)}</a>`:escapeHtml(d.name)}</strong>
+        ${d.description?`<p>${escapeHtml(d.description)}</p>`:''}
+        ${d.driveFileId?`<small>Drive ID: ${escapeHtml(d.driveFileId)}</small>`:''}
+      </article>`).join(''):`<p class='help'>No ${escapeHtml(category.toLowerCase())} documents yet.</p>`;
+    return `<section class='doc-category'><h3>${escapeHtml(category)}</h3>${body}</section>`;
+  }).join('');
+  const myReq=(data.portal.requests||[]).filter(r=>r.residentId===resident.id).map(r=>`
+    <article class='request-card request-${escapeHtml(String(r.status||'submitted').toLowerCase())}'>
+      <strong>#${escapeHtml(r.caseNumber||'Pending')}</strong>
+      <span>${escapeHtml(r.type||'Request')}</span>
+      <b>${escapeHtml(r.status||'Submitted')}</b>
+      <p>${escapeHtml(r.description||'No description provided.')}</p>
+      ${r.attachmentName?`<small>Attachment: ${r.attachmentUrl?`<a href='${escapeHtml(r.attachmentUrl)}' target='_blank' rel='noopener noreferrer'>${escapeHtml(r.attachmentName)}</a>`:escapeHtml(r.attachmentName)}</small>`:''}
+      ${r.fileLink?`<small>Linked file: <a href='${escapeHtml(r.fileLink)}' target='_blank' rel='noopener noreferrer'>${escapeHtml(r.fileLink)}</a></small>`:''}
+      ${r.adminNote?`<small>Admin note: ${escapeHtml(r.adminNote)}</small>`:''}
+    </article>`).join('')||'<p class="help">No requests yet.</p>';
+  const dir=(data.portal.residents||[]).filter(r=>r.status==='active'&&r.directoryOptIn).map(r=>{
+    const contacts=BWC.normalizeHouseholdContacts(r).map(c=>[c.name,c.phone,c.email].filter(Boolean).join(' - ')).join('<br>');
+    return `<strong>${escapeHtml(r.name)}</strong> (${escapeHtml(r.address||'Address hidden')})<br>${escapeHtml(contacts).replaceAll('&lt;br&gt;','<br>')}`;
+  }).join('<hr>')||'No directory entries';
   const logs=(data.portal.auditLogs||[]).slice(0,12).map(l=>`<li>${l.timestamp}: ${l.action} (${l.details||''})</li>`).join('')||'<li>No logs</li>';
 
   $('portal').innerHTML=
     card('Welcome',`<p><strong>${resident.name}</strong> (${resident.role})</p><button id='logout' class='secondary'>Logout</button>`)+
     `<div class='grid two'>${card('Announcements',`<ul>${announcements}</ul>`)}${card('Events & RSVPs',`<ul>${events}</ul>`)}</div>`+
-    `<div class='grid two'>${card('Document Library',`<ul>${docs}</ul>`)}${card('Requests',`<ul>${myReq}</ul><textarea id='reqText' placeholder='Request details'></textarea><select id='reqType'><option>Maintenance</option><option>Architectural Change</option></select><button id='submitReq'>Submit Request</button>`)}</div>`+
-    `<div class='grid two'>${card('Resident Directory',`<label><input id='optin' type='checkbox' ${resident.directoryOptIn?'checked':''}> Opt in to directory</label><div id='dir'>${dir}</div>`)}${card('Map + Payments Planning',`<p>Map foundation uses lot markers from managed map lots. Payment integration evaluation target: Stripe vs PayPal/Braintree for cards, ACH, Apple Pay, Venmo.</p>`)}</div>`+
-    (resident.role==='admin'?card('Admin Workflow',`<p>Pending approvals: ${(data.portal.residents||[]).filter(r=>r.status==='pending').length}</p><div id='pending'></div><h3>Create announcement</h3><input id='annTitle' placeholder='Title'><button id='addAnn'>Post</button>`):'')+
+    `${card('Document Library',`<div class='doc-library'>${docs}</div>`)}`
+    +`<div class='grid two'>${card('Requests',`<div class='request-list'>${myReq}</div><h3>Submit Request</h3><select id='reqType'><option>Architectural Change</option><option>Maintenance</option><option>General Question</option></select><textarea id='reqText' placeholder='Describe the request, project scope, materials, colors, timing, or issue.'></textarea><input id='reqFileLink' placeholder='Optional link to plans, photos, or documents'><label class='buttonlike secondary'>Upload File<input id='reqUpload' type='file' hidden></label><div id='reqAttachmentName' class='map-summary'></div><button id='submitReq'>Submit Request</button>`)}`+
+    `${card('Resident Directory',`<label class='inline-check'><input id='optin' type='checkbox' ${currentResident.directoryOptIn?'checked':''}> List my household in the directory</label><input id='dirPhone' value='${escapeHtml(currentResident.phone||'')}' placeholder='Directory phone number'><div id='dir'>${dir}</div><a class='buttonlike secondary' href='/directory/'>Open Directory & Edit Listing</a><button id='removeMyPortalAccount' class='secondary danger' type='button'>Remove My Resident Account</button>`)}</div>`+
+    `<div class='grid two'>${card('Parcel Map',`<p>Hover over a home to view parcel details and opted-in resident directory information.</p><a class='buttonlike' href='/neighborhood-map/'>Open Public Parcel Map</a>`)}</div>`+
+    card('Resident Map & Directory Lookup',`<section class='map-workspace portal-map-workspace'><aside class='map-panel' aria-label='Lot lookup'><label for='lotSearch'>Find a lot or address</label><input id='lotSearch' type='search' placeholder='Lot, address, parcel'><div id='lotSummary' class='map-summary'></div><div id='lotDetails' class='lot-details'></div><div id='lotList' class='lot-list' aria-label='Neighborhood lots'></div></aside><div id='map' class='parcel-map portal-parcel-map' data-directory='true' aria-label='Resident directory parcel map'></div></section>`)+
+    card('Payments Planning',`<p>Payment integration evaluation target: Stripe vs PayPal/Braintree for cards, ACH, Apple Pay, Venmo.</p>`)+
+    (resident.role==='admin'?card('Admin Workflow',`<h3>Resident Approvals</h3><p>Pending approvals: ${(data.portal.residents||[]).filter(r=>r.status==='pending').length}</p><div id='pending'></div><h3>Create announcement</h3><input id='annTitle' placeholder='Title'><button id='addAnn'>Post</button>`):'')+
     card('Audit Logs',`<ul>${logs}</ul>`);
 
   $('logout').onclick=()=>{BWC.logout();location.reload();};
+  $('removeMyPortalAccount').onclick=async()=>{if(!confirm('Remove your resident account and directory listing? You will need to register again for portal access.')) return; await BWC.removeCurrentResident(); alert('Your resident account was removed.'); location.href='/resident-portal/';};
+  if(BWC.renderNeighborhoodMap) await BWC.renderNeighborhoodMap();
   document.querySelectorAll('[data-rsvp]').forEach(b=>b.onclick=()=>{data.portal.rsvps.push({id:BWC.uid('rsvp'),eventId:b.dataset.rsvp,residentId:resident.id,response:'yes',createdAt:new Date().toISOString()}); BWC.logAction(data,resident.id,'event.rsvp',b.dataset.rsvp); BWC.saveData(data); render();});
-  $('submitReq').onclick=()=>{const description=BWC.sanitize($('reqText').value,300); if(!description) return alert('Enter request details.'); const type=$('reqType').value; data.portal.requests.push({id:BWC.uid('req'),caseNumber:`REQ-${Date.now()}`,residentId:resident.id,type,status:'Submitted',description,createdAt:new Date().toISOString()}); BWC.logAction(data,resident.id,'request.submitted',type); BWC.saveData(data); render();};
-  $('optin').onchange=()=>{resident.directoryOptIn=$('optin').checked; BWC.logAction(data,resident.id,'directory.optin',resident.directoryOptIn?'enabled':'disabled'); BWC.saveData(data); render();};
+  $('reqUpload').onchange=async()=>{const file=$('reqUpload').files&&$('reqUpload').files[0]; if(!file) return; requestAttachment=await new Promise(resolve=>{const reader=new FileReader(); reader.onload=()=>resolve({name:file.name,url:reader.result,size:file.size,type:file.type}); reader.readAsDataURL(file);}); $('reqAttachmentName').textContent=`Attached: ${requestAttachment.name}`;};
+  $('submitReq').onclick=async()=>{const description=BWC.sanitize($('reqText').value,600); if(!description) return alert('Enter request details.'); const type=$('reqType').value; const fileLink=BWC.sanitize($('reqFileLink').value,300); data.portal.requests.push({id:BWC.uid('req'),caseNumber:`${type==='Architectural Change'?'ARC':'REQ'}-${Date.now()}`,residentId:resident.id,residentName:currentResident.name,residentEmail:currentResident.email,lot:currentResident.lot||'',parcel:currentResident.parcel||'',address:currentResident.address||'',type,status:'Submitted',description,fileLink,attachmentName:requestAttachment?.name||'',attachmentUrl:requestAttachment?.url||'',createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()}); requestAttachment=null; BWC.logAction(data,resident.id,'request.submitted',type); BWC.saveData(data); render();};
+  $('optin').onchange=()=>{currentResident.directoryOptIn=$('optin').checked; currentResident.phone=BWC.sanitize($('dirPhone').value,40); BWC.normalizeHouseholdContacts(currentResident); BWC.logAction(data,resident.id,'directory.optin',currentResident.directoryOptIn?'enabled':'disabled'); BWC.saveData(data); render();};
+  $('dirPhone').onchange=()=>{currentResident.phone=BWC.sanitize($('dirPhone').value,40); BWC.normalizeHouseholdContacts(currentResident); BWC.logAction(data,resident.id,'directory.phone.updated','phone updated'); BWC.saveData(data); render();};
 
   if(resident.role==='admin'){
-    const pending=(data.portal.residents||[]).filter(r=>r.status==='pending').map(r=>`<div class='item'>${r.name} (${r.email}) <button data-approve='${r.id}'>Approve</button> <button data-deny='${r.id}' class='secondary danger'>Suspend</button></div>`).join('')||'No pending approvals';
+    const pending=(data.portal.residents||[]).filter(r=>r.status==='pending').map(r=>`<div class='item'><strong>${r.name}</strong><br>${r.address||'No address'}<br><small>${r.email}${r.phone?` · ${r.phone}`:''}${r.lot?` · Lot ${r.lot}`:''}${r.parcel?` · Parcel ${r.parcel}`:''} · Directory: ${r.directoryOptIn?'Yes':'No'}</small><button data-approve='${r.id}'>Approve${r.directoryOptIn?' & Add to Directory':''}</button> <button data-deny='${r.id}' class='secondary danger'>Suspend</button></div>`).join('')||'No pending approvals';
     $('pending').innerHTML=pending;
     document.querySelectorAll('[data-approve]').forEach(b=>b.onclick=()=>{const row=data.portal.residents.find(x=>x.id===b.dataset.approve); if(row){row.status='active'; BWC.logAction(data,resident.id,'admin.approve',row.email); BWC.saveData(data); render();}});
     document.querySelectorAll('[data-deny]').forEach(b=>b.onclick=()=>{const row=data.portal.residents.find(x=>x.id===b.dataset.deny); if(row){row.status='suspended'; BWC.logAction(data,resident.id,'admin.suspend',row.email); BWC.saveData(data); render();}});

@@ -1,4 +1,28 @@
-<!doctype html><html><head><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'><title>Contact</title><link rel='stylesheet' href='/assets/hoa-style.css'></head><body><div class='container grid two'><section class='card'><h1>Contact the Board</h1><form id='contact'><input name='name' placeholder='Your name' required><input type='email' name='email' placeholder='Email' required><textarea name='message' placeholder='Message' required></textarea><button>Send</button></form></section><section class='card'><h2>Subscribe for alerts</h2><form id='sub'><input type='email' name='email' placeholder='Resident email' required><button>Subscribe</button></form><small>Stored for admin review.</small></section></div><div class='container grid two'><section class='card'><h2>Neighborhood Directory</h2><p class='help'>Opt in to share your listing with neighbors. Only opted-in entries are shown below.</p><form id='directory'><input name='name' placeholder='Full name' required><input name='address' placeholder='Street address' required><input type='email' name='email' placeholder='Email'><input name='phone' placeholder='Phone'><label><input name='optIn' type='checkbox' checked style='width:auto;margin-right:.4rem'> Show my listing in directory</label><button>Save directory preference</button></form></section><section class='card'><h2>Visible listings</h2><div id='directory-list'></div></section></div><script src='/assets/hoa-app.js'></script><script>
+<!doctype html><html><head><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'><title>Contact</title><link rel='stylesheet' href='/assets/hoa-style.css'></head><body><nav class="site-top" aria-label="Primary navigation">
+  <div class="site-top-inner">
+    <a class="site-home" href="/" aria-label="Home">&#8962;</a>
+    <div class="site-menu">
+      <a href="/about/">About Us</a>
+      <div class="site-menu-links">
+        <a href="/about/">Our Association</a>
+        <a href="/welcome-to-the-neighborhood/">Welcome to the Neighborhood</a>
+        <a href="/welcome-new-homeowners/">New Homeowners</a>
+      </div>
+    </div>
+    <div class="site-menu">
+      <a href="/quick-reference/">Resources</a>
+      <div class="site-menu-links">
+        <a href="/neighborhood-map/">Neighborhood Map</a>
+        <a href="/resident-portal/">Resident Portal</a>
+        <a href="/quick-reference/">Quick Reference</a>
+      </div>
+    </div>
+    <a href="/contact/">Contacts</a>
+    <div class="site-session"><span id="siteTopUser"></span><button id="siteTopLogout" type="button">Logout</button></div>
+  </div>
+</nav><div class='container grid two'><section class='card'><h1>Contact the Board</h1><form id='contact'><input name='name' placeholder='Your name' required><input type='email' name='email' placeholder='Email' required><textarea name='message' placeholder='Message' required></textarea><button>Send</button></form></section><section class='card'><h2>Subscribe for alerts</h2><form id='sub'><input type='email' name='email' placeholder='Resident email' required><button>Subscribe</button></form><small>Stored for admin review.</small></section></div><div class='container grid two'><section class='card'><h2>Neighborhood Directory</h2><p class='help'>Opt in to share your listing with neighbors. Only opted-in entries are shown below.</p><form id='directory'><input name='name' placeholder='Full name' required><input name='address' placeholder='Street address' required><input type='email' name='email' placeholder='Email'><input name='phone' placeholder='Phone'><label><input name='optIn' type='checkbox' checked style='width:auto;margin-right:.4rem'> Show my listing in directory</label><button>Save directory preference</button></form></section><section class='card'><h2>Visible listings</h2><div id='directory-list'></div></section></div><script src='/assets/hoa-app.js'></script><script>
+BWC.wireSiteNav();
+
 (async()=>{const d=await BWC.getData();d.directory=d.directory||[];function esc(v){return String(v||'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));}function renderDirectory(){const list=document.getElementById('directory-list');const visible=d.directory.filter(x=>x.optIn);if(!visible.length){list.innerHTML='<p>No neighbors have opted in yet.</p>';return;}list.innerHTML=visible.map(x=>`<article class='item'><h3>${esc(x.name)}</h3><p>${esc(x.address)}</p><p>${x.email?`Email: <a href='mailto:${esc(x.email)}'>${esc(x.email)}</a><br>`:''}${x.phone?`Phone: ${esc(x.phone)}`:''}</p></article>`).join('');}
 document.getElementById('contact').onsubmit=(e)=>{e.preventDefault();const f=new FormData(e.target);d.contacts.push({name:f.get('name'),email:f.get('email'),message:f.get('message'),createdAt:new Date().toISOString()});BWC.saveData(d);alert('Thanks! Your message was submitted.');e.target.reset();};document.getElementById('sub').onsubmit=(e)=>{e.preventDefault();const f=new FormData(e.target);d.subscribers.push({email:f.get('email'),createdAt:new Date().toISOString()});BWC.saveData(d);alert('Subscribed.');e.target.reset();};document.getElementById('directory').onsubmit=(e)=>{e.preventDefault();const f=new FormData(e.target);const email=(f.get('email')||'').toString().trim().toLowerCase();const entry={name:(f.get('name')||'').toString().trim(),address:(f.get('address')||'').toString().trim(),email,phone:(f.get('phone')||'').toString().trim(),optIn:f.get('optIn')==='on',updatedAt:new Date().toISOString()};const idx=d.directory.findIndex(x=>(x.email||'').toLowerCase()===email&&email);if(idx>=0){d.directory[idx]={...d.directory[idx],...entry};}else{d.directory.push(entry);}BWC.saveData(d);renderDirectory();alert(entry.optIn?'You are now visible in the directory.':'You have been opted out of the directory.');e.target.reset();};renderDirectory();})();
 </script></body></html>

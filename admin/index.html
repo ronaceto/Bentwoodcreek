@@ -1,4 +1,26 @@
-<!doctype html><html><head><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'><title>Admin Portal</title><link rel='stylesheet' href='/assets/hoa-style.css'></head><body><div class='container'><h1>Admin Portal</h1><p class='help'>Designed for non-technical updates. Use simple forms below and click <strong>Save All Changes</strong>.</p><div id='auth' class='card'><p>Enter admin PIN</p><input id='pin' type='password'><button id='login'>Login</button></div><div id='dash' style='display:none'></div></div><script src='/assets/hoa-app.js'></script><script>
+<!doctype html><html><head><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'><title>Admin Portal</title><link rel='stylesheet' href='/assets/hoa-style.css'></head><body><nav class="site-top" aria-label="Primary navigation">
+  <div class="site-top-inner">
+    <a class="site-home" href="/" aria-label="Home">&#8962;</a>
+    <div class="site-menu">
+      <a href="/about/">About Us</a>
+      <div class="site-menu-links">
+        <a href="/about/">Our Association</a>
+        <a href="/welcome-to-the-neighborhood/">Welcome to the Neighborhood</a>
+        <a href="/welcome-new-homeowners/">New Homeowners</a>
+      </div>
+    </div>
+    <div class="site-menu">
+      <a href="/quick-reference/">Resources</a>
+      <div class="site-menu-links">
+        <a href="/neighborhood-map/">Neighborhood Map</a>
+        <a href="/resident-portal/">Resident Portal</a>
+        <a href="/quick-reference/">Quick Reference</a>
+      </div>
+    </div>
+    <a href="/contact/">Contacts</a>
+    <div class="site-session"><span id="siteTopUser"></span><button id="siteTopLogout" type="button">Logout</button></div>
+  </div>
+</nav><div class='container'><h1>Admin Portal</h1><p class='help'>Designed for non-technical updates. Use simple forms below and click <strong>Save All Changes</strong>.</p><div id='auth' class='card'><p>Enter admin PIN</p><input id='pin' type='password'><button id='login'>Login</button></div><div id='dash' style='display:none'></div></div><script src='/assets/hoa-app.js'></script><script>
 const auth=document.getElementById('auth'),dash=document.getElementById('dash');
 let workingData=null;
 
@@ -20,6 +42,7 @@ function ensureDefaults(d){
   d.about.committees=d.about.committees||[];
   d.events=d.events||[]; d.projects=d.projects||[]; d.resources=d.resources||[]; d.mapLots=d.mapLots||[];
   d.contacts=d.contacts||[]; d.subscribers=d.subscribers||[]; d.rsvps=d.rsvps||[];
+  BWC.ensurePortal(d);
 }
 
 async function handleFileToDataUrl(input,cb){
@@ -35,6 +58,7 @@ async function render(){
     <div class='card'>
       <h2>Publish Changes</h2>
       <p class='help'>Save regularly while editing. Export creates a backup file.</p>
+      <p><a class='buttonlike secondary' href='/resident-portal/'>Open Resident Portal</a></p>
       <div class='grid two'>
         <button id='saveAll'>Save All Changes</button>
         <button id='resetData' class='secondary'>Reload Without Saving</button>
@@ -42,6 +66,8 @@ async function render(){
         <label class='buttonlike secondary'>Import Backup (.json)<input id='importInput' type='file' accept='application/json' hidden></label>
       </div>
     </div>
+    <div class='card approval-card'><h2>Resident Directory Management</h2><p class='help'>Approve new residents, remove directory listings, or remove resident access entirely.</p><div id='residentApprovals'></div></div>
+    <div class='card'><h2>Architectural & Resident Requests</h2><p class='help'>Review submitted requests, update status, and add notes residents can see in their portal.</p><div id='requestReview'></div></div>
     <div class='card'><h2>About Page</h2><div id='aboutEditor'></div></div>
     <div class='card'><h2>Upcoming Events</h2><div id='eventsEditor'></div></div>
     <div class='card'><h2>Neighborhood Projects</h2><div id='projectsEditor'></div></div>
@@ -49,7 +75,7 @@ async function render(){
     <div class='card'><h2>Neighborhood Map Lots</h2><div id='lotsEditor'></div></div>
     <div class='card'><h2>Resident Submissions</h2><p>Contacts: ${workingData.contacts.length} | Subscribers: ${workingData.subscribers.length} | RSVPs: ${workingData.rsvps.length}</p></div>`;
 
-  drawAbout(); drawEvents(); drawProjects(); drawResources(); drawLots();
+  drawAbout(); drawEvents(); drawProjects(); drawResources(); drawLots(); drawResidentApprovals(); drawRequests();
   wireGlobalActions();
 }
 
@@ -68,7 +94,7 @@ function wireGlobalActions(){
     catch{alert('That file is not valid JSON.');}
   };
 }
-function renderWithCurrent(){ drawAbout(); drawEvents(); drawProjects(); drawResources(); drawLots(); }
+function renderWithCurrent(){ drawAbout(); drawEvents(); drawProjects(); drawResources(); drawLots(); drawResidentApprovals(); drawRequests(); }
 
 function drawAbout(){
   const box=document.getElementById('aboutEditor');
@@ -102,5 +128,76 @@ function drawProjects(){
 function drawResources(){ const box=document.getElementById('resourcesEditor'); box.innerHTML=workingData.resources.map((r,i)=>`<div class='item grid two'><input value='${escapeHtml(r.title)}' data-i='${i}' data-k='title' placeholder='Title'><input value='${escapeHtml(r.url)}' data-i='${i}' data-k='url' placeholder='URL'><button class='secondary danger' data-del='${i}'>Remove</button></div>`).join('')+"<button id='addRes'>+ Add Resource</button>"; box.querySelectorAll('[data-k]').forEach(el=>el.oninput=(e)=>workingData.resources[+e.target.dataset.i][e.target.dataset.k]=e.target.value); box.querySelectorAll('[data-del]').forEach(el=>el.onclick=()=>{workingData.resources.splice(+el.dataset.del,1);drawResources();}); document.getElementById('addRes').onclick=()=>{workingData.resources.push(clone(blank.resource));drawResources();}; }
 function drawLots(){ const box=document.getElementById('lotsEditor'); box.innerHTML=workingData.mapLots.map((l,i)=>`<div class='item grid two'><input value='${escapeHtml(l.address)}' data-i='${i}' data-k='address' placeholder='Address'><input value='${escapeHtml(l.lat)}' data-i='${i}' data-k='lat' type='number' step='0.000001' placeholder='Latitude'><input value='${escapeHtml(l.lng)}' data-i='${i}' data-k='lng' type='number' step='0.000001' placeholder='Longitude'><button class='secondary danger' data-del='${i}'>Remove</button></div>`).join('')+"<button id='addLot'>+ Add Lot</button>"; box.querySelectorAll('[data-k]').forEach(el=>el.oninput=(e)=>{const i=+e.target.dataset.i,k=e.target.dataset.k; workingData.mapLots[i][k]=(k==='lat'||k==='lng')?Number(e.target.value):e.target.value;}); box.querySelectorAll('[data-del]').forEach(el=>el.onclick=()=>{workingData.mapLots.splice(+el.dataset.del,1);drawLots();}); document.getElementById('addLot').onclick=()=>{const lot=clone(blank.mapLot); lot.id=uid('lot'); workingData.mapLots.push(lot);drawLots();}; }
 
+function drawRequests(){
+  const box=document.getElementById('requestReview');
+  const requests=workingData.portal.requests||[];
+  const statusOptions=['Submitted','Pending','Approved','Denied'];
+  box.innerHTML=requests.length?requests.map((req,i)=>`
+    <div class='item request-admin-row'>
+      <div class='request-admin-head'>
+        <strong>#${escapeHtml(req.caseNumber||'Unnumbered')}</strong>
+        <span>${escapeHtml(req.type||'Request')}</span>
+        <b>${escapeHtml(req.status||'Submitted')}</b>
+      </div>
+      <p>${escapeHtml(req.description||'No description provided.')}</p>
+      <small>${escapeHtml(req.residentName||'Resident')}${req.address?` - ${escapeHtml(req.address)}`:''}${req.lot?` - Lot ${escapeHtml(req.lot)}`:''}${req.parcel?` - Parcel ${escapeHtml(req.parcel)}`:''}</small>
+      <div class='request-links'>
+        ${req.attachmentName?`<a href='${escapeHtml(req.attachmentUrl||'#')}' target='_blank' rel='noopener noreferrer'>${escapeHtml(req.attachmentName)}</a>`:''}
+        ${req.fileLink?`<a href='${escapeHtml(req.fileLink)}' target='_blank' rel='noopener noreferrer'>Linked file</a>`:''}
+      </div>
+      <div class='grid two'>
+        <select data-req-status='${i}'>${statusOptions.map(status=>`<option ${String(req.status||'Submitted')===status?'selected':''}>${status}</option>`).join('')}</select>
+        <input data-req-note='${i}' value='${escapeHtml(req.adminNote||'')}' placeholder='Admin note visible to resident'>
+      </div>
+      <button data-save-req='${i}'>Save Review Status</button>
+    </div>`).join(''):'<p class="help">No resident requests have been submitted yet.</p>';
+  box.querySelectorAll('[data-save-req]').forEach(btn=>btn.onclick=()=>{
+    const index=Number(btn.dataset.saveReq);
+    const req=requests[index];
+    if(!req) return;
+    req.status=box.querySelector(`[data-req-status="${index}"]`).value;
+    req.adminNote=BWC.sanitize(box.querySelector(`[data-req-note="${index}"]`).value,240);
+    req.updatedAt=new Date().toISOString();
+    BWC.logAction(workingData,'pin-admin','request.review',`${req.caseNumber||req.id}: ${req.status}`);
+    BWC.saveData(workingData);
+    drawRequests();
+    alert('Request status saved.');
+  });
+}
+
+function drawResidentApprovals(){
+  const box=document.getElementById('residentApprovals');
+  BWC.normalizeResidents(workingData);
+  const residents=workingData.portal.residents||[];
+  const pending=residents.filter(r=>r.status==='pending');
+  const active=residents.filter(r=>r.status==='active');
+  const suspended=residents.filter(r=>r.status==='suspended');
+  const contactsText=(r)=>BWC.normalizeHouseholdContacts(r).map(c=>[c.name,c.phone,c.email].filter(Boolean).join(' - ')).join('<br>')||'No household contacts listed';
+  const rowCard=(r,actions='')=>`<div class='item resident-admin-row'><strong>${escapeHtml(r.name)}</strong><br>${escapeHtml(r.address||'No address')}<br><small>${escapeHtml(r.email)}${r.phone?` - ${escapeHtml(r.phone)}`:''}${r.lot?` - Lot ${escapeHtml(r.lot)}`:''}${r.parcel?` - Parcel ${escapeHtml(r.parcel)}`:''} - Directory: ${r.directoryOptIn?'Yes':'No'}</small><div class='household-contact-list'>${contactsText(r)}</div>${actions}${r.role==='admin'?'':`<button data-remove-res='${escapeHtml(r.id)}' class='secondary danger'>Remove Resident</button>`}</div>`;
+  box.innerHTML=`
+    <h3>Pending Approval (${pending.length})</h3>
+    ${pending.map(r=>rowCard(r,`<button data-approve-res='${escapeHtml(r.id)}'>Approve${r.directoryOptIn?' & Add to Directory':''}</button><button data-suspend-res='${escapeHtml(r.id)}' class='secondary danger'>Suspend</button>`)).join('')||'<p class="help">No pending resident approvals.</p>'}
+    <h3>Master Directory Entries (${active.filter(r=>r.directoryOptIn).length})</h3>
+    ${active.filter(r=>r.directoryOptIn).map(r=>rowCard(r,`<button data-optout-res='${escapeHtml(r.id)}' class='secondary'>Remove From Directory Only</button>`)).join('')||'<p class="help">No approved residents have opted into the directory yet.</p>'}
+    <h3>Approved Non-Directory Residents (${active.filter(r=>!r.directoryOptIn).length})</h3>
+    ${active.filter(r=>!r.directoryOptIn).map(r=>rowCard(r,`<button data-optin-res='${escapeHtml(r.id)}' class='secondary'>Add To Directory</button>`)).join('')||'<p class="help">None.</p>'}
+    <h3>Suspended Residents (${suspended.length})</h3>
+    ${suspended.map(r=>rowCard(r,`<button data-approve-res='${escapeHtml(r.id)}'>Reactivate</button>`)).join('')||'<p class="help">None.</p>'}`;
+  box.querySelectorAll('[data-approve-res]').forEach(btn=>btn.onclick=()=>{const row=residents.find(r=>r.id===btn.dataset.approveRes); if(row){row.status='active'; BWC.logAction(workingData,'pin-admin','admin.approve',row.email); BWC.saveData(workingData); drawResidentApprovals(); alert('Resident approved.');}});
+  box.querySelectorAll('[data-suspend-res]').forEach(btn=>btn.onclick=()=>{const row=residents.find(r=>r.id===btn.dataset.suspendRes); if(row){row.status='suspended'; BWC.logAction(workingData,'pin-admin','admin.suspend',row.email); BWC.saveData(workingData); drawResidentApprovals(); alert('Resident suspended.');}});
+  box.querySelectorAll('[data-optout-res]').forEach(btn=>btn.onclick=()=>{const row=residents.find(r=>r.id===btn.dataset.optoutRes); if(row){row.directoryOptIn=false; BWC.logAction(workingData,'pin-admin','admin.directory.optout',row.email); BWC.saveData(workingData); drawResidentApprovals(); alert('Resident removed from directory but access remains active.');}});
+  box.querySelectorAll('[data-optin-res]').forEach(btn=>btn.onclick=()=>{const row=residents.find(r=>r.id===btn.dataset.optinRes); if(row){row.directoryOptIn=true; BWC.logAction(workingData,'pin-admin','admin.directory.optin',row.email); BWC.saveData(workingData); drawResidentApprovals(); alert('Resident added to directory.');}});
+  box.querySelectorAll('[data-remove-res]').forEach(btn=>btn.onclick=()=>{
+    const row=residents.find(r=>r.id===btn.dataset.removeRes);
+    if(!row) return;
+    if(!confirm(`Remove ${row.name || row.email} from resident access and the directory?`)) return;
+    BWC.removeResidentFromData(workingData,row.id,'pin-admin');
+    BWC.saveData(workingData);
+    drawResidentApprovals();
+    alert('Resident removed.');
+  });
+}
+
 document.getElementById('login').onclick=async()=>{if(document.getElementById('pin').value!==BWC.defaultPin){alert('Invalid PIN');return;}auth.style.display='none';dash.style.display='block';render();};
+BWC.wireSiteNav();
 </script></body></html>

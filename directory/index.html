@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Resident Directory</title>
+  <link rel="stylesheet" href="/assets/hoa-style.css">
+</head>
+<body>
+  <nav class="site-top" aria-label="Primary navigation">
+  <div class="site-top-inner">
+    <a class="site-home" href="/" aria-label="Home">&#8962;</a>
+    <div class="site-menu">
+      <a href="/about/">About Us</a>
+      <div class="site-menu-links">
+        <a href="/about/">Our Association</a>
+        <a href="/welcome-to-the-neighborhood/">Welcome to the Neighborhood</a>
+        <a href="/welcome-new-homeowners/">New Homeowners</a>
+      </div>
+    </div>
+    <div class="site-menu">
+      <a href="/quick-reference/">Resources</a>
+      <div class="site-menu-links">
+        <a href="/neighborhood-map/">Neighborhood Map</a>
+        <a href="/resident-portal/">Resident Portal</a>
+        <a href="/quick-reference/">Quick Reference</a>
+      </div>
+    </div>
+    <a href="/contact/">Contacts</a>
+    <div class="site-session"><span id="siteTopUser"></span><button id="siteTopLogout" type="button">Logout</button></div>
+  </div>
+</nav>
+  <main class="container">
+    <section class="card">
+      <h1>Resident Directory</h1>
+      <p class="help">Only approved residents who opt in will appear here.</p>
+    </section>
+    <section id="directoryApp" class="card"></section>
+  </main>
+  <script src="/assets/hoa-app.js"></script>
+  <script src="/assets/directory.js"></script>
+</body>
+</html>
