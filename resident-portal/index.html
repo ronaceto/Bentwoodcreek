@@ -31,7 +31,7 @@
     <div class="site-session"><span id="siteTopUser"></span><button id="siteTopLogout" type="button">Logout</button></div>
   </div>
 </nav>
-<main class="container">
+<main class="container portal-container">
   <section id="authCard" class="card"></section>
   <section id="portal" style="display:none"></section>
 </main>
@@ -79,7 +79,7 @@ function queueMentionNotifications(data,actor,body,context){
 function renderPortalNav(){
   const items=[
     ['announcements','Announcements'],
-    ['events','Events &<br>RSVPs'],
+    ['events','Events & RSVPs'],
     ['documents','Documents'],
     ['requests','Requests'],
     ['forums','Forums'],
