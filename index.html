@@ -142,41 +142,11 @@ a:hover, a:focus {color: #f0bd13;}
 .home-quick-actions a.secondary {background:#bd4f24;}
 .home-quick-actions a:hover,.home-quick-actions a:focus {background:#de752a;color:#fff;}
 .home .banner-wrap.extra-style .banner-btn a:before {display:none!important;}
-.home-modules {display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:22px;margin:0 auto;padding:34px 0;}
-.home-module {background:#fff;border-top:5px solid #bd4f24;box-shadow:0 8px 22px rgba(77,58,48,.12);padding:24px;min-height:300px;display:flex;flex-direction:column;}
-.home-module h2 {font-size:24px;line-height:28px;margin:0 0 12px;color:#4d3a30;}
-.home-module h3 {font-size:18px;line-height:24px;margin:0 0 10px;color:#bd4f24;}
-.home-module p {font-size:14px;line-height:22px;color:#555;margin:0 0 16px;}
-.home-module-kicker {text-transform:uppercase;font-weight:700;letter-spacing:.04em;color:#816a5c!important;margin-bottom:8px!important;}
-.home-module-actions {display:flex;flex-wrap:wrap;gap:10px;margin-top:auto;}
-.home-module-button,.home-module-link {display:inline-block;border-radius:4px;font-weight:700;text-decoration:none!important;}
-.home-module-button {background:#4d3a30;color:#fff!important;padding:12px 15px;text-transform:uppercase;}
-.home-module-button:hover,.home-module-button:focus {background:#de752a;color:#fff!important;}
-.home-module-link {color:#bd4f24!important;border-bottom:2px solid #f0bd13;padding-bottom:3px;margin-right:10px;}
-.home-module-link:hover,.home-module-link:focus {color:#4d3a30!important;}
-.home-module-portal {background:#4d3a30;border-color:#f0bd13;}
-.home-module-portal h2,.home-module-portal p {color:#fff;}
-.home-module-portal .home-module-button {background:#f0bd13;color:#4d3a30!important;}
-.home-module-portal .home-module-button:hover,.home-module-portal .home-module-button:focus {background:#fff;color:#4d3a30!important;}
-.home-status-wrap {height:8px;background:#eee;border-radius:999px;margin:4px 0 14px;overflow:hidden;}
-.home-status-bar {display:block;height:100%;width:58%;background:#f0bd13;border-radius:999px;}
-.home-status-label {font-size:13px;font-weight:700;color:#4d3a30;margin-bottom:14px;}
-.home-subscribe-strip {background:#f8f4ec;border-left:5px solid #f0bd13;margin:0 0 28px;padding:20px 24px;display:flex;gap:18px;align-items:center;justify-content:space-between;}
-.home-subscribe-strip h2 {font-size:24px;line-height:28px;margin:0 0 6px;color:#4d3a30;}
-.home-subscribe-strip p {font-size:14px;line-height:22px;margin:0;color:#555;}
 @media (max-width:767px) {
 	.home .logo_h__txt,.home .logo_link {font-size:32px;line-height:34px;}
 	.home .slogan {font-size:28px;line-height:32px;}
 	.home-quick-actions {display:grid;margin-bottom:18px;}
 	.home-quick-actions a {text-align:center;}
-	.home-modules {grid-template-columns:1fr;padding:22px 0;gap:16px;}
-	.home-module {min-height:0;padding:20px;}
-	.home-module h2 {font-size:22px;line-height:26px;}
-	.home-subscribe-strip {display:block;padding:18px;margin-bottom:20px;}
-	.home-subscribe-strip .home-module-button {margin-top:12px;}
-}
-@media (min-width:768px) and (max-width:979px) {
-	.home-modules {grid-template-columns:repeat(2,minmax(0,1fr));}
 }
 </style>
 <style type='text/css'>
@@ -322,46 +292,6 @@ Association</h2>
 				<div class="row">
 					<div class="span12" data-motopress-type="loop" data-motopress-loop-file="loop/loop-page.php">
 							<div id="post-203" class="page post-203 type-page status-publish hentry">
-		<div class="content_box style-1 ">
-<section class="home-modules" aria-label="Resident and community resources">
-<article class="home-module home-module-portal">
-<h2>Resident Portal</h2>
-<p>Homeowners can sign in or request access to update directory details, manage household opt-in settings, view the document library, RSVP for events, submit requests, and track board responses.</p>
-<div class="home-module-actions"><a class="home-module-button" href="resident-portal/">Sign In/Request Access</a></div>
-</article>
-<article class="home-module">
-<p class="home-module-kicker">Latest update</p>
-<h2>Community News &amp; Projects</h2>
-<h3 id="homeProjectTitle">Neighborhood project updates</h3>
-<p id="homeProjectSummary">Approved residents can view announcements, project details, request updates, and event information in the portal.</p>
-<div class="home-status-wrap" aria-hidden="true"><span class="home-status-bar" id="homeProjectBar"></span></div>
-<div class="home-status-label" id="homeProjectStatus">Portal updates available</div>
-<div class="home-module-actions"><a class="home-module-link" href="resident-portal/">View details in the portal</a></div>
-</article>
-<article class="home-module">
-<h2>Covenants &amp; Quick Reference</h2>
-<p>Find public summaries for common questions including parking, ACC review, trash pickup, property upkeep, and other everyday neighborhood reminders.</p>
-<div class="home-module-actions"><a class="home-module-link" href="quick-reference/">Open Quick Reference</a></div>
-</article>
-<article class="home-module">
-<h2>Community Safety &amp; Contacts</h2>
-<p>For urgent emergencies call 911. For HOA maintenance, safety concerns, or neighborhood requests, use the resident portal so items can be tracked and reviewed.</p>
-<div class="home-module-actions"><a class="home-module-link" href="contact/">Board and management contacts</a><a class="home-module-link" href="resident-portal/">Submit a portal request</a></div>
-</article>
-</section>
-<section class="home-subscribe-strip" aria-label="Subscribe to communications">
-<div><h2>Subscribe to Our Communications</h2><p>Receive meeting notices, weekly reminders, project updates, and community announcements as they are posted.</p></div>
-<a class="home-module-button" href="contact/">Contact Us to Subscribe</a>
-</section>
-<div class="clear"></div></div><!-- .content_box (end) -->
-<div class="row ">
-<div class="span6 "><section class="lazy-load-box trigger effect-slidefromleft " data-delay="400" data-speed="600" style="-webkit-transition: all 600ms ease; -moz-transition: all 600ms ease; -ms-transition: all 600ms ease; -o-transition: all 600ms ease; transition: all 600ms ease;">
-<div class="banner-wrap extra-style"><h5>see the map of <strong>bentwood creek</strong></h5><div class="link-align banner-btn"><a href="neighborhood-map/" title="see the map of bentwood creek" target="_self"><span class="arrow"></span></a></div></div><!-- .banner-wrap (end) -->
-</section></div>
-<div class="span6 "><section class="lazy-load-box trigger effect-slidefromleft " data-delay="600" data-speed="600" style="-webkit-transition: all 600ms ease; -moz-transition: all 600ms ease; -ms-transition: all 600ms ease; -o-transition: all 600ms ease; transition: all 600ms ease;">
-<div class="banner-wrap extra-style"><h5>contact our <strong>board members</strong></h5><div class="link-align banner-btn"><a href="contact/" title="contact our board members" target="_self"><span class="arrow"></span></a></div></div><!-- .banner-wrap (end) -->
-</section></div>
-</div><!-- .row (end) -->
 <div class="hr"></div><!-- .hr (end) -->
 <div class="row ">
 <div class="span8 "><section class="lazy-load-box trigger effect-slidefromleft " data-delay="0" data-speed="600" style="-webkit-transition: all 600ms ease; -moz-transition: all 600ms ease; -ms-transition: all 600ms ease; -o-transition: all 600ms ease; transition: all 600ms ease;">
@@ -482,69 +412,7 @@ var _wpcf7 = {"loaderUrl":"http:\/\/www.bentwoodcreek.org\/wp-content\/plugins\/
 <script type='text/javascript' src='wp-content/themes/CherryFramework/js/jquery.debouncedresize5152.js?ver=1.0' id='debouncedresize-js'></script>
 <script type='text/javascript' src='wp-content/themes/CherryFramework/js/jquery.ba-resize.min4963.js?ver=1.1' id='ba-resize-js'></script>
 <script type='text/javascript' src='wp-content/themes/CherryFramework/js/jquery.isotopedc81.js?ver=1.5.25' id='isotope-js'></script>
-<script type='text/javascript' src='wp-includes/js/wp-embed.min07a6.js?ver=5.5.18' id='wp-embed-js'></script><script>
-	document.addEventListener('DOMContentLoaded', function () {
-		var title = document.getElementById('homeProjectTitle');
-		var summary = document.getElementById('homeProjectSummary');
-		var status = document.getElementById('homeProjectStatus');
-		var bar = document.getElementById('homeProjectBar');
-		if (!title || !summary || !status || !bar) return;
-		function cleanText(value) {
-			return String(value || '').replace(/\s+/g, ' ').trim();
-		}
-		function applyProject(project) {
-			if (!project) return;
-			var projectTitle = cleanText(project.name || project.title);
-			var projectSummary = cleanText(project.description || project.summary);
-			var projectStatus = cleanText(project.status || 'Portal updates available');
-			if (projectTitle) title.textContent = projectTitle;
-			if (projectSummary) summary.textContent = projectSummary;
-			status.textContent = projectStatus;
-			var widths = {'Planned':'35%','Submitted':'35%','Pending':'48%','In Progress':'64%','Approved':'76%','Complete':'100%','Completed':'100%'};
-			bar.style.width = widths[projectStatus] || '58%';
-		}
-		function normalizePayload(payload) {
-			if (!payload) return null;
-			if (payload.ok === false) throw new Error(payload.error || 'Data source unavailable');
-			return payload.data || payload;
-		}
-		function loadFrom(url) {
-			if (typeof fetch === 'function') {
-				return fetch(url, {cache:'no-store'}).then(function (response) {
-					if (!response.ok) throw new Error('Unable to load ' + url);
-					return response.json();
-				}).then(normalizePayload);
-			}
-			return new Promise(function (resolve, reject) {
-				var request = new XMLHttpRequest();
-				request.open('GET', url, true);
-				request.onreadystatechange = function () {
-					if (request.readyState !== 4) return;
-					if (request.status < 200 || request.status >= 300) {
-						reject(new Error('Unable to load ' + url));
-						return;
-					}
-					try {
-						resolve(normalizePayload(JSON.parse(request.responseText)));
-					} catch (error) {
-						reject(error);
-					}
-				};
-				request.send();
-			});
-		}
-		loadFrom('/api/hoa-data').catch(function () {
-			return loadFrom('app-data.json');
-		}).then(function (data) {
-			var projects = (data && data.projects) || [];
-			var order = {'In Progress':1,'Pending':2,'Planned':3,'Submitted':4,'Approved':5,'Complete':6,'Completed':6};
-			var project = projects.slice().sort(function (a, b) {
-				return (order[a.status] || 9) - (order[b.status] || 9);
-			})[0];
-			applyProject(project);
-		}).catch(function () {});
-	});
-</script>
+<script type='text/javascript' src='wp-includes/js/wp-embed.min07a6.js?ver=5.5.18' id='wp-embed-js'></script>
 			<script type="text/javascript">
 				deleteCookie('cf-cookie-banner');
 			</script>
