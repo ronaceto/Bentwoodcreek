@@ -81,13 +81,13 @@ function renderPortalNav(){
   const items=[
     ['announcements','Announcements'],
     ['events','Events & RSVPs'],
-    ['documents','Document Library'],
+    ['documents','Documents'],
     ['requests','Requests'],
     ['forums','Forums'],
     ['newsletters','Newsletters'],
     ['polls','Polls'],
     ['bulletins','Bulletin Board'],
-    ['directory','Resident Directory']
+    ['directory','Directory']
   ];
   return `<nav class='portal-nav portal-side-nav' aria-label='Resident portal sections'>${items.map(([id,label],index)=>`<button type='button' class='portal-tab ${index===0?'active':''}' data-tab-target='${id}' aria-controls='${id}' aria-selected='${index===0?'true':'false'}'>${label}</button>`).join('')}</nav>`;
 }
@@ -253,9 +253,9 @@ async function render(){
     renderPortalNav()+
     `<section id='announcements' class='portal-tab-panel portal-section'>${card('Announcements',`<ul>${announcements}</ul><p><button type='button' class='buttonlike secondary inline-tab-link' data-tab-link='newsletters'>Open newsletter archive</button></p>`)}</section>`+
     `<section id='events' class='portal-tab-panel portal-section' style='display:none'>${card('Events & RSVPs',`<ul>${events}</ul>`)}${card('Neighborhood Projects',`<div class='request-list'>${projects}</div>`)}</section>`+
-    `<section id='documents' class='portal-tab-panel portal-section' style='display:none'>${card('Document Library',`<div class='doc-library'>${docs}</div>`)}</section>`
+    `<section id='documents' class='portal-tab-panel portal-section' style='display:none'>${card('Documents',`<div class='doc-library'>${docs}</div>`)}</section>`
     +`<section id='requests' class='portal-tab-panel portal-section' style='display:none'>${card('Requests',`<div class='request-list'>${myReq}</div><h3>Submit Request</h3><div id='requestMsg' class='form-message' role='status'></div><select id='reqType'><option>Architectural Change</option><option>Maintenance</option><option>General Question</option></select><textarea id='reqText' placeholder='Describe the request, project scope, materials, colors, timing, or issue.'></textarea><input id='reqFileLink' placeholder='Optional link to plans, photos, or documents'><label class='buttonlike secondary'>Upload File<input id='reqUpload' type='file' hidden></label><div id='reqAttachmentName' class='map-summary'></div><button id='submitReq'>Submit Request</button>`)}</section>`+
-    `<section id='directory' class='portal-tab-panel portal-section' style='display:none'>${card('Resident Directory',`<label class='inline-check'><input id='optin' type='checkbox' ${currentResident.directoryOptIn?'checked':''}> List my household in the directory</label><input id='dirPhone' value='${escapeHtml(currentResident.phone||'')}' placeholder='Directory phone number'><div id='dir'>${dir}</div><a class='buttonlike secondary' href='/directory/'>Open Directory & Edit Listing</a><button id='removeMyPortalAccount' class='secondary danger' type='button'>Remove My Resident Account</button>`)}</section>`+
+    `<section id='directory' class='portal-tab-panel portal-section' style='display:none'>${card('Directory',`<label class='inline-check'><input id='optin' type='checkbox' ${currentResident.directoryOptIn?'checked':''}> List my household in the directory</label><input id='dirPhone' value='${escapeHtml(currentResident.phone||'')}' placeholder='Directory phone number'><div id='dir'>${dir}</div><a class='buttonlike secondary' href='/directory/'>Open Directory & Edit Listing</a><button id='removeMyPortalAccount' class='secondary danger' type='button'>Remove My Resident Account</button>`)}</section>`+
     renderForums(data,currentResident)+
     renderNewsletters(data,currentResident)+
     renderPolls(data,currentResident)+
