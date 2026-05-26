@@ -78,18 +78,18 @@ function queueMentionNotifications(data,actor,body,context){
 }
 function renderPortalNav(){
   const items=[
-    ['announcements','Announcements'],
-    ['events','Events & RSVPs'],
-    ['documents','Documents'],
-    ['requests','Requests'],
-    ['forums','Forums'],
-    ['newsletters','Newsletters'],
-    ['polls','Polls'],
-    ['bulletins','Bulletin<br>Board'],
-    ['portal-map','Map'],
-    ['directory','Directory']
+    ['announcements','Announcements','Announcements'],
+    ['events','Events & RSVPs','Events & RSVPs'],
+    ['documents','Documents','Documents'],
+    ['requests','Requests','Requests'],
+    ['forums','Forums','Forums'],
+    ['newsletters','Newsletters','Newsletters'],
+    ['polls','Polls','Polls'],
+    ['bulletins','Bulletin<br>Board','Bulletin Board'],
+    ['portal-map','Map','Map'],
+    ['directory','Directory','Directory']
   ];
-  return `<nav class='portal-nav portal-side-nav' aria-label='Resident portal sections'>${items.map(([id,label],index)=>`<button type='button' class='portal-tab ${index===0?'active':''}' data-tab-target='${id}' aria-controls='${id}' aria-selected='${index===0?'true':'false'}'><span>${label}</span></button>`).join('')}</nav>`;
+  return `<nav class='portal-nav portal-side-nav' aria-label='Resident portal sections'><div class='portal-section-switcher'><label for='portalSectionSelect'>Portal section</label><select id='portalSectionSelect' aria-label='Choose portal section'>${items.map(([id,,text])=>`<option value='${id}'>${text}</option>`).join('')}</select></div><div class='portal-tab-row'>${items.map(([id,label],index)=>`<button type='button' class='portal-tab ${index===0?'active':''}' data-tab-target='${id}' aria-controls='${id}' aria-selected='${index===0?'true':'false'}'><span>${label}</span></button>`).join('')}</div></nav>`;
 }
 function renderForums(data,resident){
   const categories=data.portal.forumCategories||[];
@@ -176,9 +176,13 @@ function wirePortalTabs(defaultTab='announcements'){
       tab.classList.toggle('active',selected);
       tab.setAttribute('aria-selected',selected?'true':'false');
     });
+    const select=document.getElementById('portalSectionSelect');
+    if(select&&select.value!==id) select.value=id;
     if(updateHash&&location.hash!==`#${id}`) history.replaceState(null,'',`#${id}`);
   };
   tabs.forEach(tab=>tab.onclick=()=>show(tab.dataset.tabTarget));
+  const select=document.getElementById('portalSectionSelect');
+  if(select) select.onchange=()=>show(select.value);
   show(active,false);
 }
 

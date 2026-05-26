@@ -52,7 +52,11 @@ h3,h4{margin:.6rem 0}
 .site-session span{font-size:.85rem;white-space:nowrap}
 .site-session button{min-height:38px;border-radius:4px;background:#6b7280;text-transform:none}
 @media(max-width:850px){.site-top{padding:0}.site-top-inner{grid-template-columns:1fr}.site-top a,.site-top button{min-height:48px;border-left:0;border-top:1px solid rgba(255,255,255,.16)}.site-session{justify-content:center;border-left:0}.site-menu-links{position:static;display:block;box-shadow:none}.site-menu-links a{padding-left:2rem}}
-.portal-nav{display:flex;flex-wrap:nowrap;gap:.35rem;margin:1rem 0;overflow:visible;padding:.45rem 0 .7rem}
+.portal-nav{display:block;margin:1rem 0;overflow:visible;padding:.45rem 0 .7rem}
+.portal-tab-row{display:flex;flex-wrap:nowrap;gap:.35rem;width:100%}
+.portal-section-switcher{display:none}
+.portal-section-switcher label{display:block;font-weight:700;margin:0 0 .25rem;color:#1b1f24}
+.portal-section-switcher select{margin:0;background:#fff;border:1px solid #b45309;border-radius:8px;font-weight:700}
 .portal-nav .portal-tab{display:inline-flex;align-items:center;justify-content:center;flex:1 1 0;min-width:0;width:auto;min-height:44px;padding:.28rem .42rem;background:#fff;border:1px solid #d1d5db;border-radius:6px;color:#1b1f24;text-decoration:none;font-weight:700;font-size:clamp(.68rem,.78vw,.92rem);line-height:1.08;white-space:normal;text-align:center;margin:0;position:relative}
 .portal-nav .portal-tab span{display:block;max-width:100%;overflow-wrap:anywhere}
 .portal-nav .portal-tab:hover{border-color:#9b4d15;color:#9b4d15;background:#fff8eb}
@@ -152,10 +156,27 @@ summary{cursor:pointer;font-weight:700}
 .directory-entry dd{margin:0}
 @media(max-width:760px){
   .container{padding:.75rem}
+  .portal-container{max-width:100%;padding:.55rem}
   .card{border-radius:8px;padding:.85rem;margin:.75rem 0}
-  input,textarea,select,button,.buttonlike{font-size:16px;box-sizing:border-box}
+  input,textarea,select,button,.buttonlike{font-size:16px;box-sizing:border-box;min-height:44px}
+  textarea{min-height:128px}
   .modal{padding:2vh .75rem}.modal-actions{display:grid}
   .dashboard-counts,.grid.two{grid-template-columns:1fr}
+  .portal-side-nav{top:0;z-index:10002;background:#f6f7f9;border:1px solid #e5e7eb;border-radius:8px;padding:.55rem;margin:.5rem 0 .75rem;box-shadow:0 2px 12px rgba(0,0,0,.08)}
+  .portal-tab-row{display:none}
+  .portal-section-switcher{display:block}
+  .portal-section{scroll-margin-top:84px}
+  .communication-toolbar{grid-template-columns:1fr}
+  .comm-form,.comm-item,details,.doc-category,.request-card,.directory-entry,.directory-contact{padding:.75rem}
+  .comm-item-head{display:grid;justify-content:stretch;gap:.35rem}
+  .comm-item-head span,.comm-item-head small{width:max-content}
+  .forum-post.nested{margin-left:.4rem}
+  .poll-bar{grid-template-columns:1fr;gap:.25rem}
+  .poll-bar b{width:100%;max-width:100%;height:14px}
+  .poll-bar small{text-align:left}
+  .inline-check{align-items:flex-start}
+  .inline-check input{margin-top:.15rem;min-height:0}
+  .buttonlike{display:flex;align-items:center;justify-content:center}
   .request-admin-head{display:grid;gap:.35rem}
   .doc-admin-form,.directory-profile,.map-panel{padding:.75rem}
 }
