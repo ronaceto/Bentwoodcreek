@@ -252,6 +252,10 @@ ul.sf-menu li li:hover ul, ul.sf-menu li li.sfHover ul {
 .sf-menu li li li a { color:#fff; }
 .sf-menu > li > a:hover, .sf-menu > li.sfHover> a, .sf-menu > li.current-menu-item > a, .sf-menu > li.current_page_item > a { background-color:transparent; }
 .sf-menu > li > a:hover:before, .sf-menu > li.sfHover> a:before, .sf-menu > li.current-menu-item > a:before, .sf-menu > li.current_page_item > a:before { height:100%; }
+.sf-menu > li.resident-login-menu { float:right; }
+.sf-menu > li.resident-login-menu > a { background:#f0bd13; color:#4d3a30; padding-left:18px; padding-right:18px; }
+.sf-menu > li.resident-login-menu > a:before { display:none; }
+.sf-menu > li.resident-login-menu > a:hover, .sf-menu > li.resident-login-menu.sfHover > a { background:#dca900; color:#4d3a30; }
 .sf-menu li li > a:hover, .sf-menu li li.sfHover > a, .sf-menu li li.current-menu-item > a, .sf-menu li li.current_page_item > a {
 	background-color:transparent;
 	color:#de752a;
