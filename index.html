@@ -577,6 +577,7 @@ var WPGroHo = {"my_hash":""};
 		}
 		function normalizePayload(payload) {
 			if (!payload) return null;
+			if (payload.ok === false) throw new Error(payload.error || 'Data source unavailable');
 			return payload.data || payload;
 		}
 		function loadFrom(url) {
