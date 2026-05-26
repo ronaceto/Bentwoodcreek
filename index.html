@@ -581,10 +581,29 @@ var WPGroHo = {"my_hash":""};
 			return payload.data || payload;
 		}
 		function loadFrom(url) {
-			return fetch(url, {cache:'no-store'}).then(function (response) {
-				if (!response.ok) throw new Error('Unable to load ' + url);
-				return response.json();
-			}).then(normalizePayload);
+			if (typeof fetch === 'function') {
+				return fetch(url, {cache:'no-store'}).then(function (response) {
+					if (!response.ok) throw new Error('Unable to load ' + url);
+					return response.json();
+				}).then(normalizePayload);
+			}
+			return new Promise(function (resolve, reject) {
+				var request = new XMLHttpRequest();
+				request.open('GET', url, true);
+				request.onreadystatechange = function () {
+					if (request.readyState !== 4) return;
+					if (request.status < 200 || request.status >= 300) {
+						reject(new Error('Unable to load ' + url));
+						return;
+					}
+					try {
+						resolve(normalizePayload(JSON.parse(request.responseText)));
+					} catch (error) {
+						reject(error);
+					}
+				};
+				request.send();
+			});
 		}
 		loadFrom('/api/hoa-data').catch(function () {
 			return loadFrom('app-data.json');
