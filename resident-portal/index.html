@@ -86,6 +86,7 @@ function renderPortalNav(){
     ['newsletters','Newsletters'],
     ['polls','Polls'],
     ['bulletins','Bulletin<br>Board'],
+    ['portal-map','Map'],
     ['directory','Directory']
   ];
   return `<nav class='portal-nav portal-side-nav' aria-label='Resident portal sections'>${items.map(([id,label],index)=>`<button type='button' class='portal-tab ${index===0?'active':''}' data-tab-target='${id}' aria-controls='${id}' aria-selected='${index===0?'true':'false'}'><span>${label}</span></button>`).join('')}</nav>`;
@@ -259,20 +260,26 @@ async function render(){
     renderNewsletters(data,currentResident)+
     renderPolls(data,currentResident)+
     renderBulletins(data,currentResident)+
-    `<div class='grid two'>${card('Parcel Map',`<p>Hover over a home to view parcel details and opted-in resident directory information.</p><a class='buttonlike' href='/neighborhood-map/'>Open Public Parcel Map</a>`)}</div>`+
-    card('Resident Map & Directory Lookup',`<section class='map-workspace portal-map-workspace'><aside class='map-panel' aria-label='Lot lookup'><label for='lotSearch'>Find a lot or address</label><input id='lotSearch' type='search' placeholder='Lot, address, parcel'><div id='lotSummary' class='map-summary'></div><div id='lotDetails' class='lot-details'></div><div id='lotList' class='lot-list' aria-label='Neighborhood lots'></div></aside><div id='map' class='parcel-map portal-parcel-map' data-directory='true' aria-label='Resident directory parcel map'></div></section>`)+
+    `<section id='portal-map' class='portal-tab-panel portal-section' style='display:none'>${card('Resident Map & Directory Lookup',`<p class='help'>Hover over a home to view parcel details and opted-in resident directory information.</p><section class='map-workspace portal-map-workspace'><aside class='map-panel' aria-label='Lot lookup'><label for='lotSearch'>Find a lot or address</label><input id='lotSearch' type='search' placeholder='Lot, address, parcel'><div id='lotSummary' class='map-summary'></div><div id='lotDetails' class='lot-details'></div><div id='lotList' class='lot-list' aria-label='Neighborhood lots'></div></aside><div id='map' class='parcel-map portal-parcel-map' data-directory='true' aria-label='Resident directory parcel map'></div></section>`)}</section>`+
     card('Payments Planning',`<p>Payment integration evaluation target: Stripe vs PayPal/Braintree for cards, ACH, Apple Pay, Venmo.</p>`)+
     (resident.role==='admin'?card('Admin Workflow',`<h3>Resident Approvals</h3><p>Pending approvals: ${(data.portal.residents||[]).filter(r=>r.status==='pending').length}</p><div id='pending'></div><h3>Create announcement</h3><input id='annTitle' placeholder='Title'><button id='addAnn'>Post</button>`):'')+
     card('Audit Logs',`<ul>${logs}</ul>`);
 
   wirePortalTabs();
+  let portalMapRendered=false;
+  const renderPortalMapOnce=async()=>{
+    if(portalMapRendered||!BWC.renderNeighborhoodMap) return;
+    portalMapRendered=true;
+    await BWC.renderNeighborhoodMap();
+  };
+  document.querySelector('[data-tab-target="portal-map"]')?.addEventListener('click',()=>setTimeout(renderPortalMapOnce,0));
+  if(document.getElementById('portal-map')?.style.display==='block') await renderPortalMapOnce();
   document.querySelectorAll('[data-tab-link]').forEach(btn=>btn.onclick=()=>{
     const target=document.querySelector(`[data-tab-target="${btn.dataset.tabLink}"]`);
     if(target){target.click(); document.querySelector('.portal-side-nav')?.scrollIntoView({block:'start'});}
   });
   $('logout').onclick=()=>{BWC.logout();location.reload();};
   $('removeMyPortalAccount').onclick=async()=>{if(!await BWC.confirmAction({title:'Remove resident account',message:'Remove your resident account and directory listing? You will need to register again for portal access.',confirmText:'Remove Account',danger:true})) return; await BWC.removeCurrentResident(); alert('Your resident account was removed.'); location.href='/resident-portal/';};
-  if(BWC.renderNeighborhoodMap) await BWC.renderNeighborhoodMap();
   document.querySelectorAll('[data-rsvp]').forEach(b=>b.onclick=()=>{data.portal.rsvps.push({id:BWC.uid('rsvp'),eventId:b.dataset.rsvp,residentId:resident.id,response:'yes',createdAt:new Date().toISOString()}); BWC.logAction(data,resident.id,'event.rsvp',b.dataset.rsvp); BWC.saveData(data); render();});
   $('reqUpload').onchange=async()=>{const file=$('reqUpload').files&&$('reqUpload').files[0]; if(!file) return; requestAttachment=await new Promise(resolve=>{const reader=new FileReader(); reader.onload=()=>resolve({name:file.name,url:reader.result,size:file.size,type:file.type}); reader.readAsDataURL(file);}); $('reqAttachmentName').textContent=`Attached: ${requestAttachment.name}`;};
   $('submitReq').onclick=async()=>{const description=BWC.sanitize($('reqText').value,600); if(!description) return setMessage('requestMsg','Enter request details before submitting.','error'); const type=$('reqType').value; const fileLink=BWC.sanitize($('reqFileLink').value,300); setMessage('requestMsg','Submitting request...','info'); data.portal.requests.push({id:BWC.uid('req'),caseNumber:`${type==='Architectural Change'?'ARC':'REQ'}-${Date.now()}`,residentId:resident.id,residentName:currentResident.name,residentEmail:currentResident.email,lot:currentResident.lot||'',parcel:currentResident.parcel||'',address:currentResident.address||'',type,status:'Submitted',description,fileLink,attachmentName:requestAttachment?.name||'',attachmentUrl:requestAttachment?.url||'',createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()}); requestAttachment=null; BWC.logAction(data,resident.id,'request.submitted',type); await BWC.saveData(data); setMessage('requestMsg','Request submitted.','success'); render();};
