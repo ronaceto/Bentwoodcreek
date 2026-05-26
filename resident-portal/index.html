@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Bentwood Creek Resident Portal MVP</title>
+  <title>Bentwood Creek Resident Portal</title>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
   <link rel="stylesheet" href="/assets/hoa-style.css" />
 </head>
@@ -32,7 +32,7 @@
   </div>
 </nav>
 <main class="container">
-  <section class="card"><h1>Resident Portal MVP (Rework)</h1><p class="help">Phase 1 rework: stronger validation, role gates, safer seed model, clearer admin workflows.</p></section>
+  <section class="card"><h1>Resident Portal</h1><p class="help">Sign in to access resident-only announcements, events, documents, requests, projects, and the directory.</p></section>
   <section id="authCard" class="card"></section>
   <section id="portal" style="display:none"></section>
 </main>
@@ -47,16 +47,21 @@ const setMessage=(id,text,type='error')=>{const el=$(id); if(!el) return; el.tex
 let requestAttachment=null;
 const params=new URLSearchParams(location.search);
 const selectedLot=params.get('lot');
+const authMode=String(params.get('mode')||location.hash.replace('#','')||(selectedLot?'register':'signin')).toLowerCase();
 
 async function authView(){
   const data=await BWC.getData();
   const lot=(data.mapLots||[]).find(l=>String(l.lot)===String(selectedLot));
   const address=lot?`${lot.address}, ${lot.city||'Collierville'}, ${lot.state||'TN'} ${lot.zip||'38017'}`:'';
   const lotIntro=lot?`<div class='item'><strong>Registering for Lot ${lot.lot}</strong><br>${address}<br><small>Parcel ${lot.parcel}</small></div>`:'';
-  $('authCard').innerHTML=`<h2>Sign in</h2><p class='help'>Residents sign in here after approval. Admin approvals are also available from the PIN admin page.</p><div id='loginMsg' class='form-message' role='status'></div><input id='email' placeholder='Email' autocomplete='email'><input id='password' type='password' placeholder='Password' autocomplete='current-password'><button id='login'>Login</button>
-  <h3>Request Resident Access</h3>${lotIntro}<div id='registerMsg' class='form-message' role='status'></div><input id='rname' placeholder='Primary resident name' autocomplete='name'><input id='rphone' placeholder='Primary phone number' autocomplete='tel'><input id='remail' placeholder='Primary email' autocomplete='email'><div class='grid two'><input id='rname2' placeholder='Additional household name'><input id='rphone2' placeholder='Additional phone number'></div><input id='remail2' placeholder='Additional email'><input id='raddress' placeholder='Property address' value='${escapeHtml(address)}'><label class='inline-check'><input id='rdir' type='checkbox' checked> Add my household to the resident directory after approval</label><input id='rpass' type='password' placeholder='Password (10+ chars)' autocomplete='new-password'><button id='register' class='secondary'>Submit for Approval</button>`;
+  const registerHref=`/resident-portal/?mode=register${lot?`&lot=${encodeURIComponent(lot.lot)}`:''}`;
+  if(authMode==='register'){
+    $('authCard').innerHTML=`<h2>Request Resident Access</h2><p class='help'>Submit your household information for HOA approval. After approval, you can sign in with your email and password.</p>${lotIntro}<div id='registerMsg' class='form-message' role='status'></div><input id='rname' placeholder='Primary resident name' autocomplete='name'><input id='rphone' placeholder='Primary phone number' autocomplete='tel'><input id='remail' placeholder='Primary email' autocomplete='email'><div class='grid two'><input id='rname2' placeholder='Additional household name'><input id='rphone2' placeholder='Additional phone number'></div><input id='remail2' placeholder='Additional email'><input id='raddress' placeholder='Property address' value='${escapeHtml(address)}'><label class='inline-check'><input id='rdir' type='checkbox' checked> Add my household to the resident directory after approval</label><input id='rpass' type='password' placeholder='Password (10+ chars)' autocomplete='new-password'><button id='register'>Submit for Approval</button><a class='buttonlike secondary' href='/resident-portal/'>Already registered? Sign in</a>`;
+    $('register').onclick=async()=>{ try{ setMessage('registerMsg','Submitting your registration...','info'); const rec=await BWC.registerResident({name:$('rname').value,phone:$('rphone').value,email:$('remail').value,address:$('raddress').value,lot:lot?.lot||'',parcel:lot?.parcel||'',directoryOptIn:$('rdir').checked,password:$('rpass').value,householdContacts:[{name:$('rname').value,phone:$('rphone').value,email:$('remail').value},{name:$('rname2').value,phone:$('rphone2').value,email:$('remail2').value}]}); $('authCard').innerHTML=`<h2>Submitted for Approval</h2><p><strong>${escapeHtml(rec.name)}</strong> is pending admin approval for ${escapeHtml(rec.address)}.</p><p class='help'>${rec.directoryOptIn?'After admin approval, this household will be added to the resident directory.':'This household will not appear in the directory unless directory opt-in is enabled later.'}</p><a class='buttonlike' href='/resident-portal/'>Back to Sign In</a><a class='buttonlike secondary' href='/neighborhood-map/'>Back to Parcel Map</a>`; }catch(e){setMessage('registerMsg',e.message||'Unable to submit registration.','error');} };
+    return;
+  }
+  $('authCard').innerHTML=`<h2>Sign In</h2><p class='help'>Enter the email and password for your approved resident account.</p><div id='loginMsg' class='form-message' role='status'></div><input id='email' placeholder='Email' autocomplete='email'><input id='password' type='password' placeholder='Password' autocomplete='current-password'><button id='login'>Sign In</button><p class='help'>Not registered yet?</p><a class='buttonlike secondary' href='${registerHref}'>Register for Resident Access</a>`;
   $('login').onclick=async()=>{ try{ setMessage('loginMsg','Signing in...','info'); await BWC.loginResident($('email').value,$('password').value); setMessage('loginMsg','Login successful. Opening the portal...','success'); await render(); }catch(e){setMessage('loginMsg',e.message||'Unable to sign in.','error');} };
-  $('register').onclick=async()=>{ try{ setMessage('registerMsg','Submitting your registration...','info'); const rec=await BWC.registerResident({name:$('rname').value,phone:$('rphone').value,email:$('remail').value,address:$('raddress').value,lot:lot?.lot||'',parcel:lot?.parcel||'',directoryOptIn:$('rdir').checked,password:$('rpass').value,householdContacts:[{name:$('rname').value,phone:$('rphone').value,email:$('remail').value},{name:$('rname2').value,phone:$('rphone2').value,email:$('remail2').value}]}); $('authCard').innerHTML=`<h2>Submitted for Approval</h2><p><strong>${escapeHtml(rec.name)}</strong> is pending admin approval for ${escapeHtml(rec.address)}.</p><p class='help'>${rec.directoryOptIn?'After admin approval, this household will be added to the resident directory.':'This household will not appear in the directory unless directory opt-in is enabled later.'}</p><a class='buttonlike' href='/admin/'>Open Admin Approvals</a><a class='buttonlike secondary' href='/neighborhood-map/'>Back to Parcel Map</a>`; }catch(e){setMessage('registerMsg',e.message||'Unable to submit registration.','error');} };
 }
 
 function renderPending(resident){
