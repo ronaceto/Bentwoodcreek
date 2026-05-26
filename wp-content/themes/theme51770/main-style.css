@@ -1542,6 +1542,83 @@ nav.footer-nav ul li.current-menu-item a {
 	position:relative;
 	top:1px;
 }
+
+/* Compact global footer: keep contact details, remove old resource/subscribe block. */
+.footer {
+	position:relative;
+	padding:26px 0 22px !important;
+}
+.footer-widgets {
+	display:flex !important;
+	align-items:flex-start;
+	justify-content:flex-end;
+	gap:48px;
+	padding-bottom:18px !important;
+}
+.footer-widgets:before,
+.footer-widgets:after { display:none !important; }
+.footer-widgets > [class*="span"] {
+	float:none !important;
+	width:auto !important;
+	margin-left:0 !important;
+}
+.footer-widgets > [data-motopress-sidebar-id="footer-sidebar-1"],
+.footer-widgets > [data-motopress-sidebar-id="footer-sidebar-2"],
+.footer-widgets > [data-motopress-sidebar-id="footer-sidebar-3"] {
+	display:none !important;
+}
+.footer-widgets > [data-motopress-sidebar-id="footer-sidebar-4"] {
+	display:grid !important;
+	grid-template-columns:minmax(260px, 1fr) minmax(210px, .8fr);
+	column-gap:28px;
+	flex:0 1 620px;
+}
+.footer-widgets > [data-motopress-sidebar-id="footer-sidebar-4"] #text-9 {
+	grid-row:1 / span 2;
+}
+.footer-widgets > [data-motopress-sidebar-id="footer-sidebar-4"] #social_networks-2,
+.footer-widgets > [data-motopress-sidebar-id="footer-sidebar-4"] #text-12 {
+	align-self:start;
+}
+.footer-widgets .widget { margin-bottom:10px !important; }
+.footer-widgets .widget-title { margin-bottom:14px !important; }
+.footer-widgets p {
+	margin-bottom:8px;
+	line-height:20px;
+}
+.footer-widgets .social { margin:0; }
+.footer-widgets .social_li { margin-bottom:0 !important; }
+.copyright {
+	position:absolute;
+	left:50%;
+	bottom:18px;
+	width:1170px;
+	max-width:calc(100% - 40px);
+	margin-left:0 !important;
+	transform:translateX(-50%);
+	padding-top:0 !important;
+}
+@media (min-width:768px) and (max-width:1199px) {
+	.footer-widgets > [data-motopress-sidebar-id="footer-sidebar-4"] {
+		grid-template-columns:minmax(180px, 1fr) minmax(135px, .75fr);
+		column-gap:20px;
+		flex-basis:560px;
+	}
+}
+@media (max-width:767px) {
+	.footer { padding:24px 20px 22px !important; }
+	.footer-widgets { display:block !important; }
+	.footer-widgets > [data-motopress-sidebar-id="footer-sidebar-4"] {
+		display:block !important;
+	}
+	.copyright {
+		position:static;
+		width:auto;
+		max-width:none;
+		transform:none;
+		padding-top:12px !important;
+	}
+}
 .footer-text a.site-name:hover, .footer-text a.site-name:focus { color:#de752a; }
 .dropcap {
 	margin:0 10px 10px 0;
