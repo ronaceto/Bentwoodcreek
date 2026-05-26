@@ -261,9 +261,7 @@ async function render(){
     renderPolls(data,currentResident)+
     renderBulletins(data,currentResident)+
     `<section id='portal-map' class='portal-tab-panel portal-section' style='display:none'>${card('Resident Map & Directory Lookup',`<p class='help'>Hover over a home to view parcel details and opted-in resident directory information.</p><section class='map-workspace portal-map-workspace'><aside class='map-panel' aria-label='Lot lookup'><label for='lotSearch'>Find a lot or address</label><input id='lotSearch' type='search' placeholder='Lot, address, parcel'><div id='lotSummary' class='map-summary'></div><div id='lotDetails' class='lot-details'></div><div id='lotList' class='lot-list' aria-label='Neighborhood lots'></div></aside><div id='map' class='parcel-map portal-parcel-map' data-directory='true' aria-label='Resident directory parcel map'></div></section>`)}</section>`+
-    card('Payments Planning',`<p>Payment integration evaluation target: Stripe vs PayPal/Braintree for cards, ACH, Apple Pay, Venmo.</p>`)+
-    (resident.role==='admin'?card('Admin Workflow',`<h3>Resident Approvals</h3><p>Pending approvals: ${(data.portal.residents||[]).filter(r=>r.status==='pending').length}</p><div id='pending'></div><h3>Create announcement</h3><input id='annTitle' placeholder='Title'><button id='addAnn'>Post</button>`):'')+
-    card('Audit Logs',`<ul>${logs}</ul>`);
+    (resident.role==='admin'?card('Admin Workflow',`<h3>Resident Approvals</h3><p>Pending approvals: ${(data.portal.residents||[]).filter(r=>r.status==='pending').length}</p><div id='pending'></div><h3>Create announcement</h3><input id='annTitle' placeholder='Title'><button id='addAnn'>Post</button>`):'');
 
   wirePortalTabs();
   let portalMapRendered=false;
