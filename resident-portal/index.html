@@ -80,16 +80,16 @@ function queueMentionNotifications(data,actor,body,context){
 function renderPortalNav(){
   const items=[
     ['announcements','Announcements'],
-    ['events','Events & RSVPs'],
+    ['events','Events &<br>RSVPs'],
     ['documents','Documents'],
     ['requests','Requests'],
     ['forums','Forums'],
     ['newsletters','Newsletters'],
     ['polls','Polls'],
-    ['bulletins','Bulletin Board'],
+    ['bulletins','Bulletin<br>Board'],
     ['directory','Directory']
   ];
-  return `<nav class='portal-nav portal-side-nav' aria-label='Resident portal sections'>${items.map(([id,label],index)=>`<button type='button' class='portal-tab ${index===0?'active':''}' data-tab-target='${id}' aria-controls='${id}' aria-selected='${index===0?'true':'false'}'>${label}</button>`).join('')}</nav>`;
+  return `<nav class='portal-nav portal-side-nav' aria-label='Resident portal sections'>${items.map(([id,label],index)=>`<button type='button' class='portal-tab ${index===0?'active':''}' data-tab-target='${id}' aria-controls='${id}' aria-selected='${index===0?'true':'false'}'><span>${label}</span></button>`).join('')}</nav>`;
 }
 function renderForums(data,resident){
   const categories=data.portal.forumCategories||[];
