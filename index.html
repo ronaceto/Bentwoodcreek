@@ -172,7 +172,24 @@ a:hover, a:focus {color: #f0bd13;}
 .banner-wrap.extra-style h5 {font-size: 28px;}
 .footer-widgets h1, .footer-widgets h2, .footer-widgets h3, .footer-widgets h4, .footer-widgets h5, .footer-widgets h6 {color: #bd3a24;}
 .footer-text a.site-name {color: #bd3a24;}
-.home .logo {padding-bottom: 50px;}
+.home .logo {padding-bottom: 16px;}
+.home .header {padding-bottom: 18px;}
+.home .slogan {margin-bottom: 18px;}
+.home-quick-actions {display:flex;flex-wrap:wrap;gap:12px;justify-content:center;margin:10px auto 28px;}
+.home-quick-actions a {display:inline-block;background:#4d3a30;color:#fff;text-transform:uppercase;font-weight:700;padding:12px 18px;border-radius:4px;text-decoration:none;}
+.home-quick-actions a.secondary {background:#bd4f24;}
+.home-quick-actions a:hover,.home-quick-actions a:focus {background:#de752a;color:#fff;}
+.home .service-box.extra-btn .btn-align .btn:before,
+.home .service-box.extra-btn .btn-align .btn:after,
+.home .banner-wrap.extra-style .banner-btn a:before {display:none!important;}
+.home .service-box.extra-btn .btn-align .btn {min-width:120px;text-indent:0!important;}
+.home .service-box {cursor:pointer;}
+@media (max-width:767px) {
+	.home .logo_h__txt,.home .logo_link {font-size:32px;line-height:34px;}
+	.home .slogan {font-size:28px;line-height:32px;}
+	.home-quick-actions {display:grid;margin-bottom:18px;}
+	.home-quick-actions a {text-align:center;}
+}
 </style>
 <style type='text/css'>
 h1 { font: normal 30px/35px Open Sans;  color:#464646; }
@@ -301,6 +318,11 @@ body { font-weight: normal;}
 		<div class="span12" data-motopress-type="static" data-motopress-static-file="static/static-slogan.php">
 				<h2 class="slogan">Homeowners' <br>
 Association</h2>
+				<div class="home-quick-actions" aria-label="Quick actions">
+					<a href="neighborhood-map/">Neighborhood Map</a>
+					<a class="secondary" href="resident-portal/">Resident Portal</a>
+					<a href="quick-reference/">Quick Reference</a>
+				</div>
 		</div>	
 	</div>
 					</div>
@@ -322,7 +344,7 @@ Association</h2>
 		<div class="content_box style-1 ">
 <div class="row ">
 <div class="span3 "><section class="lazy-load-box trigger effect-slidefromleft " data-delay="200" data-speed="600" style="-webkit-transition: all 600ms ease; -moz-transition: all 600ms ease; -ms-transition: all 600ms ease; -o-transition: all 600ms ease; transition: all 600ms ease;">
-<div class="service-box extra-btn"><div class="service-box_header"><figure class="icon"><img src="wp-content/themes/theme51770/images/icon3.png" alt="" /></figure><h2 class="title">Upcoming Events</h2></div><div class="service-box_body"><h5 class="sub-title">have an idea?</h5><div class="service-box_txt">Do you have an idea for a neighborhood social? Please contact our social committee.</div><div class="btn-align"><a href="upcoming-events/" title="Read more" class="btn btn-inverse btn-normal btn-primary " target="_self"><span>Read more</span></a></div></div></div><!-- /Service Box -->
+<div class="service-box extra-btn"><div class="service-box_header"><figure class="icon"><img src="wp-content/themes/theme51770/images/icon3.png" alt="" /></figure><h2 class="title">Resident Updates</h2></div><div class="service-box_body"><h5 class="sub-title">events and projects</h5><div class="service-box_txt">Upcoming events and neighborhood project details are available to approved residents in the portal.</div><div class="btn-align"><a href="resident-portal/" title="Open Resident Portal" class="btn btn-inverse btn-normal btn-primary " target="_self"><span>Open Portal</span></a></div></div></div><!-- /Service Box -->
 </section></div>
 <div class="span3 "><section class="lazy-load-box trigger effect-slidefromleft " data-delay="400" data-speed="600" style="-webkit-transition: all 600ms ease; -moz-transition: all 600ms ease; -ms-transition: all 600ms ease; -o-transition: all 600ms ease; transition: all 600ms ease;">
 <div class="service-box extra-btn"><div class="service-box_header"><figure class="icon"><img src="wp-content/themes/theme51770/images/icon4.png" alt="" /></figure><h2 class="title">Safety &amp; Security</h2></div><div class="service-box_body"><h5 class="sub-title">be cautious</h5><div class="service-box_txt">Please report any suspicious activity to the police and the Association.</div><div class="btn-align"><a href="safety-security/" title="Read more" class="btn btn-inverse btn-normal btn-primary " target="_self"><span>Read more</span></a></div></div></div><!-- /Service Box -->
@@ -508,6 +530,27 @@ var WPGroHo = {"my_hash":""};
 	_stq = window._stq || [];
 	_stq.push([ 'view', {v:'ext',j:'1:7.9.4',blog:'83399089',post:'203',tz:'0',srv:'www.bentwoodcreek.org'} ]);
 	_stq.push([ 'clickTrackerInit', '83399089', '203' ]);
+</script>
+<script>
+	document.addEventListener('DOMContentLoaded', function () {
+		document.querySelectorAll('.home .service-box').forEach(function (card) {
+			var link = card.querySelector('.btn-align a');
+			if (!link) return;
+			card.setAttribute('tabindex', '0');
+			card.setAttribute('role', 'link');
+			card.setAttribute('aria-label', link.textContent.trim() + ': ' + (card.querySelector('.title') ? card.querySelector('.title').textContent.trim() : 'Open section'));
+			card.addEventListener('click', function (event) {
+				if (event.target.closest('a')) return;
+				window.location.href = link.href;
+			});
+			card.addEventListener('keydown', function (event) {
+				if (event.key === 'Enter' || event.key === ' ') {
+					event.preventDefault();
+					window.location.href = link.href;
+				}
+			});
+		});
+	});
 </script>
 			<script type="text/javascript">
 				deleteCookie('cf-cookie-banner');

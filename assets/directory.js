@@ -2,6 +2,12 @@ const app = document.getElementById('directoryApp');
 const escapeHtml = (value) => String(value || '').replace(/[&<>"']/g, (char) => ({
   '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
 }[char]));
+const setMessage = (id, text, type = 'error') => {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.textContent = text || '';
+  el.className = `form-message ${type} ${text ? 'show' : ''}`;
+};
 
 const contactRows = (contacts) => contacts.map((contact, index) => `
   <div class="household-contact-row" data-contact-row="${index}">
@@ -36,6 +42,7 @@ const contactDisplay = (entry) => BWC.normalizeHouseholdContacts(entry).map((con
     app.innerHTML = `
       <h2>Sign In Required</h2>
       <p>The parcel map is public, but directory opt-in and listing edits require an approved resident login.</p>
+      <div id="dirLoginMsg" class="form-message" role="status"></div>
       <input id="dirLoginEmail" placeholder="Email">
       <input id="dirLoginPassword" type="password" placeholder="Password">
       <button id="dirLogin">Sign In</button>
@@ -45,10 +52,11 @@ const contactDisplay = (entry) => BWC.normalizeHouseholdContacts(entry).map((con
       </div>`;
     document.getElementById('dirLogin').onclick = async () => {
       try {
+        setMessage('dirLoginMsg', 'Signing in...', 'info');
         await BWC.loginResident(document.getElementById('dirLoginEmail').value, document.getElementById('dirLoginPassword').value);
         location.reload();
       } catch (e) {
-        alert(e.message);
+        setMessage('dirLoginMsg', e.message || 'Unable to sign in.', 'error');
       }
     };
     return;
@@ -71,6 +79,7 @@ const contactDisplay = (entry) => BWC.normalizeHouseholdContacts(entry).map((con
     <section class="directory-profile">
       <h2>Your Directory Listing</h2>
       <p class="help">Manage the household names, phone numbers, and emails that appear in the master resident directory.</p>
+      <div id="dirProfileMsg" class="form-message" role="status"></div>
       <label class="inline-check"><input id="myDirOptIn" type="checkbox" ${current.directoryOptIn ? 'checked' : ''}> List my household in the resident directory</label>
       <div class="grid two">
         <input id="myDirName" value="${escapeHtml(current.name || '')}" placeholder="Primary resident name">
@@ -87,18 +96,24 @@ const contactDisplay = (entry) => BWC.normalizeHouseholdContacts(entry).map((con
         <button id="removeMyResidentAccount" class="secondary danger" type="button">Remove My Resident Account</button>
       </div>
     </section>
-    <div class="directory-toolbar">
-      <input id="dirSearch" type="search" placeholder="Search by name, address, lot, phone, or email">
-      <a class="buttonlike secondary" href="/neighborhood-map/">Parcel Map</a>
+    <div class="directory-search-card">
+      <label for="dirSearch">Search Resident Directory</label>
+      <div class="directory-toolbar">
+        <input id="dirSearch" type="search" placeholder="Search by name, address, lot, phone, or email">
+        <a class="buttonlike secondary" href="/neighborhood-map/">Parcel Map</a>
+      </div>
+      <div id="dirSummary" class="map-summary"></div>
     </div>
-    <div id="dirSummary" class="map-summary"></div>
     <div id="dirEntries" class="directory-list"></div>`;
 
   const contactsBox = document.getElementById('householdContacts');
   const redrawContacts = (nextContacts) => {
     contactsBox.innerHTML = contactRows(nextContacts.length ? nextContacts : [{ name: '', phone: '', email: '' }]);
     contactsBox.querySelectorAll('[data-remove-contact]').forEach((btn) => {
-      btn.onclick = () => redrawContacts(readContacts().filter((_, index) => index !== Number(btn.dataset.removeContact)));
+      btn.onclick = () => {
+        redrawContacts(readContacts().filter((_, index) => index !== Number(btn.dataset.removeContact)));
+        setMessage('dirProfileMsg', 'Household contact removed', 'success');
+      };
     });
   };
   redrawContacts(contacts);
@@ -129,7 +144,7 @@ const contactDisplay = (entry) => BWC.normalizeHouseholdContacts(entry).map((con
     `).join('') : '<p class="help">No residents have opted in yet.</p>';
   };
 
-  document.getElementById('saveDirectoryProfile').onclick = () => {
+  document.getElementById('saveDirectoryProfile').onclick = async () => {
     const primaryEmail = BWC.sanitize(document.getElementById('myDirEmail').value, 120).toLowerCase();
     current.directoryOptIn = document.getElementById('myDirOptIn').checked;
     current.name = BWC.sanitize(document.getElementById('myDirName').value, 120);
@@ -137,18 +152,24 @@ const contactDisplay = (entry) => BWC.normalizeHouseholdContacts(entry).map((con
     current.email = primaryEmail;
     current.address = BWC.sanitize(document.getElementById('myDirAddress').value, 160);
     current.householdContacts = readContacts();
-    if (!current.name || !BWC.validateEmail(current.email)) return alert('Use a primary name and valid primary email address.');
-    if (current.householdContacts.some((contact) => contact.email && !BWC.validateEmail(contact.email))) return alert('Use valid email addresses for household contacts.');
+    if (!current.name || !BWC.validateEmail(current.email)) return setMessage('dirProfileMsg', 'Use a primary name and valid primary email address.', 'error');
+    if (current.householdContacts.some((contact) => contact.email && !BWC.validateEmail(contact.email))) return setMessage('dirProfileMsg', 'Use valid email addresses for household contacts.', 'error');
     BWC.normalizeHouseholdContacts(current);
     BWC.logAction(data, current.id, 'directory.profile.updated', current.directoryOptIn ? 'opted in' : 'opted out');
-    BWC.saveData(data);
+    setMessage('dirProfileMsg', 'Saving directory listing...', 'info');
+    await BWC.saveData(data);
     BWC.wireSiteNav();
     render();
-    alert(current.directoryOptIn ? 'Directory listing saved.' : 'Directory opt-out saved.');
+    setMessage('dirProfileMsg', current.directoryOptIn ? 'Directory listing saved' : 'Directory opt-out saved', 'success');
   };
 
   document.getElementById('removeMyResidentAccount').onclick = async () => {
-    if (!confirm('Remove your resident account and directory listing? You will need to register again for portal access.')) return;
+    if (!await BWC.confirmAction({
+      title: 'Remove resident account',
+      message: 'Remove your resident account and directory listing? You will need to register again for portal access.',
+      confirmText: 'Remove Account',
+      danger: true
+    })) return;
     await BWC.removeCurrentResident();
     alert('Your resident account was removed.');
     location.href = '/resident-portal/';

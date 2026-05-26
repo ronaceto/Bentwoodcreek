@@ -6,6 +6,7 @@ body{font-family:Arial,sans-serif;margin:0;background:#f6f7f9;color:#1b1f24}
 .grid{display:grid;gap:1rem}
 @media(min-width:760px){.grid.two{grid-template-columns:1fr 1fr}}
 input,textarea,select,button{width:100%;padding:.6rem;margin:.4rem 0}
+input:focus,textarea:focus,select:focus,button:focus,a:focus{outline:3px solid rgba(240,189,19,.45);outline-offset:2px}
 input[type="checkbox"]{width:auto;margin-right:.45rem}
 .inline-check{display:flex;align-items:center;gap:.25rem;margin:.5rem 0;color:#1b1f24}
 button{background:#4d3a30;color:#fff;border:0;border-radius:6px;cursor:pointer}
@@ -14,7 +15,21 @@ small{color:#555}.hero{max-height:180px;object-fit:cover;width:100%}a{color:#9b4
 .modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);padding:4vh 1rem;z-index:9999}
 .modal.open{display:block}.modal-card{background:#fff;max-width:780px;margin:0 auto;padding:1rem;border-radius:10px}
 .modal-actions{display:flex;gap:.5rem}
+.confirm-card{max-width:520px}
+.confirm-card p{line-height:1.45;color:#374151}
+.dashboard-counts{display:grid;gap:.75rem}
+@media(min-width:760px){.dashboard-counts{grid-template-columns:repeat(3,minmax(0,1fr))}}
+.dashboard-count{border:1px solid #e5e7eb;border-radius:8px;background:#fcfcfd;padding:.85rem}
+.dashboard-count strong{display:block;font-size:1.85rem;color:#2f5d50;line-height:1}
+.dashboard-count span{display:block;margin-top:.35rem;color:#4b5563;font-weight:700}
+.doc-admin-form{border:1px solid #e5e7eb;border-radius:8px;background:#fcfcfd;padding:.85rem;margin-bottom:1rem}
+.doc-admin-row{align-items:end}
 .help{color:#4b5563}
+.form-message{display:none;border-radius:8px;padding:.65rem .75rem;margin:.6rem 0;line-height:1.35}
+.form-message.show{display:block}
+.form-message.error{background:#fef2f2;border:1px solid #fecaca;color:#8a1f1d}
+.form-message.success{background:#f0fdf4;border:1px solid #bbf7d0;color:#166534}
+.form-message.info{background:#eff6ff;border:1px solid #bfdbfe;color:#1d4ed8}
 .item{border:1px solid #e5e7eb;border-radius:8px;padding:.8rem;margin:.8rem 0;background:#fcfcfd}
 .buttonlike{display:block;text-align:center;background:#4d3a30;color:#fff;border-radius:6px;padding:.6rem;cursor:pointer;margin:.4rem 0}
 .buttonlike.secondary{background:#6b7280}
@@ -82,6 +97,9 @@ h3,h4{margin:.6rem 0}
 .empty-state{height:100%;display:grid;place-items:center;color:#4b5563}
 .directory-toolbar{display:grid;gap:.75rem}
 @media(min-width:720px){.directory-toolbar{grid-template-columns:1fr 180px;align-items:center}}
+.directory-search-card{border:1px solid #d1d5db;border-radius:8px;background:#fff8eb;padding:.9rem;margin:1rem 0}
+.directory-search-card label{display:block;font-weight:700;color:#1b1f24;margin-bottom:.25rem}
+.directory-search-card input{background:#fff;border:1px solid #b45309}
 .directory-profile{border:1px solid #e5e7eb;border-radius:8px;padding:1rem;margin-bottom:1rem;background:#fcfcfd}
 .directory-profile h2{font-size:1.2rem;margin:.1rem 0 .35rem}
 .household-contact-editor{display:grid;gap:.6rem;margin:.5rem 0}
@@ -102,4 +120,21 @@ h3,h4{margin:.6rem 0}
 .directory-entry dl{display:grid;grid-template-columns:90px 1fr;gap:.25rem .75rem;margin:.6rem 0 0}
 .directory-entry dt{font-weight:700;color:#6b7280}
 .directory-entry dd{margin:0}
-@media(max-width:640px){.map-header{display:block}.map-header-actions{display:grid}.map-header-action{width:100%}.parcel-map{min-height:62vh}.parcel-map-popout{min-height:70vh}}
+@media(max-width:760px){
+  .container{padding:.75rem}
+  .card{border-radius:8px;padding:.85rem;margin:.75rem 0}
+  input,textarea,select,button,.buttonlike{font-size:16px;box-sizing:border-box}
+  .modal{padding:2vh .75rem}.modal-actions{display:grid}
+  .dashboard-counts,.grid.two{grid-template-columns:1fr}
+  .request-admin-head{display:grid;gap:.35rem}
+  .doc-admin-form,.directory-profile,.map-panel{padding:.75rem}
+}
+@media(max-width:640px){
+  .map-header{display:block}.map-header-actions{display:grid}.map-header-action{width:100%}
+  .map-workspace,.map-workspace-popout{grid-template-columns:1fr}
+  .map-panel{max-height:none;order:2}
+  .parcel-map{min-height:58vh;order:1}.parcel-map-popout{min-height:70vh}
+  .lot-row{grid-template-columns:1fr}.lot-row small{grid-column:auto}
+  .directory-entry dl{grid-template-columns:1fr}
+  .household-contact-row{grid-template-columns:1fr}
+}

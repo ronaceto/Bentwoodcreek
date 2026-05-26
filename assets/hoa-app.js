@@ -109,6 +109,41 @@ function normalizeHouseholdContacts(resident){
 }
 function normalizeResidents(d){ ensurePortal(d); d.portal.residents.forEach(normalizeHouseholdContacts); }
 function logAction(d,actorId,action,details){ ensurePortal(d); d.portal.auditLogs.unshift({id:uid('log'),timestamp:new Date().toISOString(),actorId:actorId||'anonymous',action:sanitize(action,60),details:sanitize(details,240)}); d.portal.auditLogs=d.portal.auditLogs.slice(0,1000); }
+function confirmAction({title='Confirm action',message='Are you sure?',confirmText='Confirm',cancelText='Cancel',danger=true}={}){
+  return new Promise(resolve=>{
+    let modal=document.getElementById('bwcConfirmModal');
+    if(!modal){
+      modal=document.createElement('div');
+      modal.id='bwcConfirmModal';
+      modal.className='modal';
+      modal.innerHTML="<div class='modal-card confirm-card' role='dialog' aria-modal='true' aria-labelledby='bwcConfirmTitle'><h2 id='bwcConfirmTitle'></h2><p id='bwcConfirmMessage'></p><div class='modal-actions'><button id='bwcConfirmYes'></button><button id='bwcConfirmNo' class='secondary'></button></div></div>";
+      document.body.appendChild(modal);
+    }
+    const titleEl=modal.querySelector('#bwcConfirmTitle');
+    const messageEl=modal.querySelector('#bwcConfirmMessage');
+    const yes=modal.querySelector('#bwcConfirmYes');
+    const no=modal.querySelector('#bwcConfirmNo');
+    titleEl.textContent=title;
+    messageEl.textContent=message;
+    yes.textContent=confirmText;
+    no.textContent=cancelText;
+    yes.className=danger?'danger':'';
+    modal.classList.add('open');
+    no.focus();
+    const close=(answer)=>{
+      modal.classList.remove('open');
+      yes.onclick=null;
+      no.onclick=null;
+      modal.onclick=null;
+      document.onkeydown=null;
+      resolve(answer);
+    };
+    yes.onclick=()=>close(true);
+    no.onclick=()=>close(false);
+    modal.onclick=(event)=>{ if(event.target===modal) close(false); };
+    document.onkeydown=(event)=>{ if(event.key==='Escape') close(false); };
+  });
+}
 function removeResidentFromData(d,residentId,actorId='system'){
   ensurePortal(d);
   const index=d.portal.residents.findIndex(r=>r.id===residentId);
@@ -171,5 +206,5 @@ async function wireSiteNav(){
   }
 }
 
-root.BWC={getData,saveData,defaultPin,normalizeAssetUrl,sanitize,validateEmail,uid,ensurePortal,normalizeHouseholdContacts,normalizeResidents,logAction,removeResidentFromData,removeCurrentResident,registerResident,loginResident,getSessionResident,logout,requireRole,sha256,wireSiteNav};
+root.BWC={getData,saveData,defaultPin,normalizeAssetUrl,sanitize,validateEmail,uid,ensurePortal,normalizeHouseholdContacts,normalizeResidents,logAction,confirmAction,removeResidentFromData,removeCurrentResident,registerResident,loginResident,getSessionResident,logout,requireRole,sha256,wireSiteNav};
 })(__bwcRoot);

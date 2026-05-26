@@ -20,7 +20,7 @@
     <a href="/contact/">Contacts</a>
     <div class="site-session"><span id="siteTopUser"></span><button id="siteTopLogout" type="button">Logout</button></div>
   </div>
-</nav><div class='container'><h1>Admin Portal</h1><p class='help'>Designed for non-technical updates. Use simple forms below and click <strong>Save All Changes</strong>.</p><div id='auth' class='card'><p>Enter admin PIN</p><input id='pin' type='password'><button id='login'>Login</button></div><div id='dash' style='display:none'></div></div><script src='/assets/hoa-app.js'></script><script>
+</nav><div class='container'><h1>Admin Portal</h1><p class='help'>Designed for non-technical updates. Use simple forms below and click <strong>Save All Changes</strong>.</p><div id='auth' class='card'><p>Enter admin PIN</p><div id='adminLoginMsg' class='form-message' role='status'></div><input id='pin' type='password'><button id='login'>Login</button></div><div id='dash' style='display:none'></div></div><script src='/assets/hoa-app.js'></script><script>
 const auth=document.getElementById('auth'),dash=document.getElementById('dash');
 let workingData=null;
 
@@ -29,6 +29,7 @@ const blank={
   committee:{name:'',description:''},
   event:{id:'',title:'',datetime:'',location:'',description:'',image:'',rsvpLink:'#'},
   project:{id:'',name:'',status:'Planned',description:'',documents:[]},
+  document:{id:'',name:'',category:'Forms',description:'',url:''},
   resource:{title:'',url:''},
   mapLot:{id:'',address:'',lat:'',lng:''}
 };
@@ -36,6 +37,7 @@ const blank={
 function uid(prefix){return `${prefix}-${Date.now()}-${Math.floor(Math.random()*1000)}`;}
 function escapeHtml(str=''){return String(str).replace(/[&<>"]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m]));}
 function clone(v){return JSON.parse(JSON.stringify(v));}
+function setMessage(id,text,type='error'){const el=document.getElementById(id); if(!el) return; el.textContent=text||''; el.className=`form-message ${type} ${text?'show':''}`;}
 function ensureDefaults(d){
   d.about=d.about||{boardMembers:[],committees:[]};
   d.about.boardMembers=d.about.boardMembers||[];
@@ -43,6 +45,38 @@ function ensureDefaults(d){
   d.events=d.events||[]; d.projects=d.projects||[]; d.resources=d.resources||[]; d.mapLots=d.mapLots||[];
   d.contacts=d.contacts||[]; d.subscribers=d.subscribers||[]; d.rsvps=d.rsvps||[];
   BWC.ensurePortal(d);
+}
+
+const docCategories=['Governing Documents','Architectural Review','Financial / Assessments','Meeting Minutes','Projects','Forms'];
+const adminActor='pin-admin';
+
+async function saveAdminChange(action,details,redraw){
+  BWC.logAction(workingData,adminActor,action,details||'');
+  const synced=await BWC.saveData(workingData);
+  if(typeof redraw==='function') redraw();
+  if(!synced) console.warn('Saved locally; remote Google Sheets sync did not confirm.');
+  return synced;
+}
+
+async function confirmDanger(title,message,confirmText='Remove'){
+  return BWC.confirmAction({title,message,confirmText,cancelText:'Cancel',danger:true});
+}
+
+function pendingRequestCount(type){
+  return (workingData.portal.requests||[]).filter(req=>{
+    const status=String(req.status||'Submitted');
+    return ['Submitted','Pending'].includes(status)&&String(req.type||'').toLowerCase().includes(type);
+  }).length;
+}
+
+function drawDashboardCounts(){
+  const box=document.getElementById('dashboardCounts');
+  if(!box) return;
+  const pendingResidents=(workingData.portal.residents||[]).filter(r=>r.status==='pending').length;
+  box.innerHTML=`
+    <div class='dashboard-count'><strong>${pendingResidents}</strong><span>Pending residents</span></div>
+    <div class='dashboard-count'><strong>${pendingRequestCount('architectural')}</strong><span>Pending architectural requests</span></div>
+    <div class='dashboard-count'><strong>${pendingRequestCount('maintenance')}</strong><span>Pending maintenance requests</span></div>`;
 }
 
 async function handleFileToDataUrl(input,cb){
@@ -66,21 +100,23 @@ async function render(){
         <label class='buttonlike secondary'>Import Backup (.json)<input id='importInput' type='file' accept='application/json' hidden></label>
       </div>
     </div>
+    <div class='card'><h2>Dashboard Counts</h2><div id='dashboardCounts' class='dashboard-counts'></div></div>
     <div class='card approval-card'><h2>Resident Directory Management</h2><p class='help'>Approve new residents, remove directory listings, or remove resident access entirely.</p><div id='residentApprovals'></div></div>
     <div class='card'><h2>Architectural & Resident Requests</h2><p class='help'>Review submitted requests, update status, and add notes residents can see in their portal.</p><div id='requestReview'></div></div>
+    <div class='card'><h2>Portal Document Library</h2><p class='help'>Add resident-only document links by category. File upload can be added once permanent storage is selected.</p><div id='documentsEditor'></div></div>
     <div class='card'><h2>About Page</h2><div id='aboutEditor'></div></div>
-    <div class='card'><h2>Upcoming Events</h2><div id='eventsEditor'></div></div>
-    <div class='card'><h2>Neighborhood Projects</h2><div id='projectsEditor'></div></div>
+    <div class='card'><h2>Portal Upcoming Events</h2><p class='help'>Resident-only event details and RSVPs display inside the Resident Portal.</p><div id='eventsEditor'></div></div>
+    <div class='card'><h2>Portal Neighborhood Projects</h2><p class='help'>Resident-only project updates and project documents display inside the Resident Portal.</p><div id='projectsEditor'></div></div>
     <div class='card'><h2>Helpful Resources</h2><div id='resourcesEditor'></div></div>
     <div class='card'><h2>Neighborhood Map Lots</h2><div id='lotsEditor'></div></div>
     <div class='card'><h2>Resident Submissions</h2><p>Contacts: ${workingData.contacts.length} | Subscribers: ${workingData.subscribers.length} | RSVPs: ${workingData.rsvps.length}</p></div>`;
 
-  drawAbout(); drawEvents(); drawProjects(); drawResources(); drawLots(); drawResidentApprovals(); drawRequests();
+  drawDashboardCounts(); drawAbout(); drawEvents(); drawProjects(); drawResources(); drawLots(); drawDocuments(); drawResidentApprovals(); drawRequests();
   wireGlobalActions();
 }
 
 function wireGlobalActions(){
-  document.getElementById('saveAll').onclick=()=>{BWC.saveData(workingData);alert('All changes saved.');};
+  document.getElementById('saveAll').onclick=async()=>{await saveAdminChange('admin.bulk.save','Manual Save All Changes');alert('All changes saved.');};
   document.getElementById('resetData').onclick=()=>render();
   document.getElementById('exportBtn').onclick=()=>{
     const a=document.createElement('a');
@@ -90,43 +126,127 @@ function wireGlobalActions(){
   document.getElementById('importInput').onchange=async(e)=>{
     const file=e.target.files[0]; if(!file) return;
     const text=await file.text();
-    try{const parsed=JSON.parse(text); ensureDefaults(parsed); workingData=parsed; alert('Backup imported. Remember to click Save All Changes.'); renderWithCurrent();}
+    try{const parsed=JSON.parse(text); ensureDefaults(parsed); workingData=parsed; BWC.logAction(workingData,adminActor,'admin.backup.imported',file.name); alert('Backup imported. Remember to click Save All Changes.'); renderWithCurrent();}
     catch{alert('That file is not valid JSON.');}
   };
 }
-function renderWithCurrent(){ drawAbout(); drawEvents(); drawProjects(); drawResources(); drawLots(); drawResidentApprovals(); drawRequests(); }
+function renderWithCurrent(){ drawDashboardCounts(); drawAbout(); drawEvents(); drawProjects(); drawResources(); drawLots(); drawDocuments(); drawResidentApprovals(); drawRequests(); }
 
 function drawAbout(){
   const box=document.getElementById('aboutEditor');
   box.innerHTML=`<h3>Board Members</h3>${workingData.about.boardMembers.map((m,i)=>`<div class='item'><input data-k='role' data-i='${i}' data-g='board' value='${escapeHtml(m.role)}' placeholder='Role'><input data-k='name' data-i='${i}' data-g='board' value='${escapeHtml(m.name)}' placeholder='Name'><textarea data-k='description' data-i='${i}' data-g='board' placeholder='Description'>${escapeHtml(m.description)}</textarea><button class='secondary danger' data-del='board' data-i='${i}'>Remove</button></div>`).join('')}<button id='addBoard'>+ Add Board Member</button><h3>Committees</h3>${workingData.about.committees.map((c,i)=>`<div class='item'><input data-k='name' data-i='${i}' data-g='committee' value='${escapeHtml(c.name)}' placeholder='Committee name'><textarea data-k='description' data-i='${i}' data-g='committee' placeholder='Description'>${escapeHtml(c.description)}</textarea><button class='secondary danger' data-del='committee' data-i='${i}'>Remove</button></div>`).join('')}<button id='addCommittee'>+ Add Committee</button>`;
   box.querySelectorAll('[data-g]').forEach(el=>el.oninput=(e)=>{const {g,i,k}=e.target.dataset; const v=e.target.value; (g==='board'?workingData.about.boardMembers:workingData.about.committees)[+i][k]=v;});
-  box.querySelectorAll('[data-del]').forEach(el=>el.onclick=()=>{const i=+el.dataset.i; if(el.dataset.del==='board') workingData.about.boardMembers.splice(i,1); else workingData.about.committees.splice(i,1); drawAbout();});
-  document.getElementById('addBoard').onclick=()=>{workingData.about.boardMembers.push(clone(blank.board));drawAbout();};
-  document.getElementById('addCommittee').onclick=()=>{workingData.about.committees.push(clone(blank.committee));drawAbout();};
+  box.querySelectorAll('[data-del]').forEach(el=>el.onclick=async()=>{const i=+el.dataset.i; if(el.dataset.del==='board'){const row=workingData.about.boardMembers[i]; workingData.about.boardMembers.splice(i,1); await saveAdminChange('admin.board.removed',row?.name||row?.role||'board member',drawAbout);} else {const row=workingData.about.committees[i]; workingData.about.committees.splice(i,1); await saveAdminChange('admin.committee.removed',row?.name||'committee',drawAbout);}});
+  document.getElementById('addBoard').onclick=async()=>{workingData.about.boardMembers.push(clone(blank.board));await saveAdminChange('admin.board.added','board member',drawAbout);};
+  document.getElementById('addCommittee').onclick=async()=>{workingData.about.committees.push(clone(blank.committee));await saveAdminChange('admin.committee.added','committee',drawAbout);};
 }
 
 function drawEvents(){
   const box=document.getElementById('eventsEditor');
   box.innerHTML=workingData.events.map((ev,i)=>`<div class='item'><input value='${escapeHtml(ev.title)}' data-i='${i}' data-k='title' placeholder='Event title'><input type='datetime-local' value='${escapeHtml(ev.datetime||'')}' data-i='${i}' data-k='datetime'><input value='${escapeHtml(ev.location)}' data-i='${i}' data-k='location' placeholder='Location'><textarea data-i='${i}' data-k='description' placeholder='Description'>${escapeHtml(ev.description)}</textarea><input value='${escapeHtml(ev.rsvpLink||'#')}' data-i='${i}' data-k='rsvpLink' placeholder='RSVP link'><label>Event image URL</label><input value='${escapeHtml(ev.image||'')}' data-i='${i}' data-k='image' placeholder='/wp-content/uploads/...'><label class='buttonlike'>Upload Event Image<input type='file' accept='image/*' data-upload='event' data-i='${i}' hidden></label>${ev.image?`<img class='hero' src='${escapeHtml(BWC.normalizeAssetUrl(ev.image))}' alt='Preview'>`:''}<button class='secondary danger' data-del='${i}'>Remove Event</button></div>`).join('')+"<button id='addEvent'>+ Add Event</button>";
   box.querySelectorAll('[data-k]').forEach(el=>el.oninput=(e)=>{workingData.events[+e.target.dataset.i][e.target.dataset.k]=e.target.value;});
-  box.querySelectorAll('[data-del]').forEach(el=>el.onclick=()=>{workingData.events.splice(+el.dataset.del,1);drawEvents();});
-  box.querySelectorAll('[data-upload="event"]').forEach(el=>el.onchange=()=>handleFileToDataUrl(el,(result,name)=>{const row=workingData.events[+el.dataset.i];row.image=result; if(!row.title) row.title=name; drawEvents();}));
-  document.getElementById('addEvent').onclick=()=>{const item=clone(blank.event);item.id=uid('evt');workingData.events.push(item);drawEvents();};
+  box.querySelectorAll('[data-del]').forEach(el=>el.onclick=async()=>{
+    const event=workingData.events[+el.dataset.del];
+    if(!event||!await confirmDanger('Delete event',`Delete "${event.title||'this event'}" from the resident portal events list?`,'Delete Event')) return;
+    workingData.events.splice(+el.dataset.del,1);
+    await saveAdminChange('admin.event.deleted',event.title||event.id,drawEvents);
+  });
+  box.querySelectorAll('[data-upload="event"]').forEach(el=>el.onchange=()=>handleFileToDataUrl(el,async(result,name)=>{const row=workingData.events[+el.dataset.i];row.image=result; if(!row.title) row.title=name; await saveAdminChange('admin.event.image.uploaded',row.title||name,drawEvents);}));
+  document.getElementById('addEvent').onclick=async()=>{const item=clone(blank.event);item.id=uid('evt');workingData.events.push(item);await saveAdminChange('admin.event.added',item.id,drawEvents);};
 }
 
 function drawProjects(){
   const box=document.getElementById('projectsEditor');
   box.innerHTML=workingData.projects.map((p,i)=>`<div class='item'><input value='${escapeHtml(p.name)}' data-i='${i}' data-k='name' placeholder='Project name'><select data-i='${i}' data-k='status'><option ${p.status==='Planned'?'selected':''}>Planned</option><option ${p.status==='In Progress'?'selected':''}>In Progress</option><option ${p.status==='Complete'?'selected':''}>Complete</option></select><textarea data-i='${i}' data-k='description' placeholder='Description'>${escapeHtml(p.description)}</textarea><h4>Documents</h4>${(p.documents||[]).map((d,di)=>`<div class='grid two'><input value='${escapeHtml(d.label||'')}' data-i='${i}' data-doc='${di}' data-k='label' placeholder='Document label'><input value='${escapeHtml(d.url||'')}' data-i='${i}' data-doc='${di}' data-k='url' placeholder='Document URL'><button class='secondary danger' data-dropdoc='${i}' data-doc='${di}'>Remove Document</button></div>`).join('')}<label class='buttonlike secondary'>Upload Document<input type='file' data-upload='doc' data-i='${i}' hidden></label><button class='secondary' data-adddoc='${i}'>+ Add Document Link</button><button class='secondary danger' data-delproj='${i}'>Remove Project</button></div>`).join('')+"<button id='addProject'>+ Add Project</button>";
   box.querySelectorAll('[data-k]').forEach(el=>el.oninput=(e)=>{const {i,k,doc}=e.target.dataset; if(doc!==undefined){workingData.projects[+i].documents[+doc][k]=e.target.value;} else {workingData.projects[+i][k]=e.target.value;}});
-  box.querySelectorAll('[data-adddoc]').forEach(el=>el.onclick=()=>{const p=workingData.projects[+el.dataset.adddoc];p.documents=p.documents||[];p.documents.push({label:'',url:''});drawProjects();});
-  box.querySelectorAll('[data-dropdoc]').forEach(el=>el.onclick=()=>{workingData.projects[+el.dataset.dropdoc].documents.splice(+el.dataset.doc,1);drawProjects();});
-  box.querySelectorAll('[data-upload="doc"]').forEach(el=>el.onchange=()=>handleFileToDataUrl(el,(result,name)=>{const p=workingData.projects[+el.dataset.i];p.documents=p.documents||[];p.documents.push({label:name,url:result});drawProjects();}));
-  box.querySelectorAll('[data-delproj]').forEach(el=>el.onclick=()=>{workingData.projects.splice(+el.dataset.delproj,1);drawProjects();});
-  document.getElementById('addProject').onclick=()=>{const item=clone(blank.project);item.id=uid('prj');workingData.projects.push(item);drawProjects();};
+  box.querySelectorAll('[data-adddoc]').forEach(el=>el.onclick=async()=>{const p=workingData.projects[+el.dataset.adddoc];p.documents=p.documents||[];p.documents.push({label:'',url:''});await saveAdminChange('admin.project.document.added',p.name||p.id,drawProjects);});
+  box.querySelectorAll('[data-dropdoc]').forEach(el=>el.onclick=async()=>{
+    const p=workingData.projects[+el.dataset.dropdoc];
+    const doc=p&&p.documents?p.documents[+el.dataset.doc]:null;
+    if(!doc||!await confirmDanger('Remove project document',`Remove "${doc.label||'this document'}" from ${p.name||'this project'}?`,'Remove Document')) return;
+    p.documents.splice(+el.dataset.doc,1);
+    await saveAdminChange('admin.project.document.removed',`${p.name||p.id}: ${doc.label||doc.url||'document'}`,drawProjects);
+  });
+  box.querySelectorAll('[data-upload="doc"]').forEach(el=>el.onchange=()=>handleFileToDataUrl(el,async(result,name)=>{const p=workingData.projects[+el.dataset.i];p.documents=p.documents||[];p.documents.push({label:name,url:result});await saveAdminChange('admin.project.document.uploaded',`${p.name||p.id}: ${name}`,drawProjects);}));
+  box.querySelectorAll('[data-delproj]').forEach(el=>el.onclick=async()=>{
+    const project=workingData.projects[+el.dataset.delproj];
+    if(!project||!await confirmDanger('Delete project',`Delete "${project.name||'this project'}" from the resident portal project list?`,'Delete Project')) return;
+    workingData.projects.splice(+el.dataset.delproj,1);
+    await saveAdminChange('admin.project.deleted',project.name||project.id,drawProjects);
+  });
+  document.getElementById('addProject').onclick=async()=>{const item=clone(blank.project);item.id=uid('prj');workingData.projects.push(item);await saveAdminChange('admin.project.added',item.id,drawProjects);};
 }
 
-function drawResources(){ const box=document.getElementById('resourcesEditor'); box.innerHTML=workingData.resources.map((r,i)=>`<div class='item grid two'><input value='${escapeHtml(r.title)}' data-i='${i}' data-k='title' placeholder='Title'><input value='${escapeHtml(r.url)}' data-i='${i}' data-k='url' placeholder='URL'><button class='secondary danger' data-del='${i}'>Remove</button></div>`).join('')+"<button id='addRes'>+ Add Resource</button>"; box.querySelectorAll('[data-k]').forEach(el=>el.oninput=(e)=>workingData.resources[+e.target.dataset.i][e.target.dataset.k]=e.target.value); box.querySelectorAll('[data-del]').forEach(el=>el.onclick=()=>{workingData.resources.splice(+el.dataset.del,1);drawResources();}); document.getElementById('addRes').onclick=()=>{workingData.resources.push(clone(blank.resource));drawResources();}; }
-function drawLots(){ const box=document.getElementById('lotsEditor'); box.innerHTML=workingData.mapLots.map((l,i)=>`<div class='item grid two'><input value='${escapeHtml(l.address)}' data-i='${i}' data-k='address' placeholder='Address'><input value='${escapeHtml(l.lat)}' data-i='${i}' data-k='lat' type='number' step='0.000001' placeholder='Latitude'><input value='${escapeHtml(l.lng)}' data-i='${i}' data-k='lng' type='number' step='0.000001' placeholder='Longitude'><button class='secondary danger' data-del='${i}'>Remove</button></div>`).join('')+"<button id='addLot'>+ Add Lot</button>"; box.querySelectorAll('[data-k]').forEach(el=>el.oninput=(e)=>{const i=+e.target.dataset.i,k=e.target.dataset.k; workingData.mapLots[i][k]=(k==='lat'||k==='lng')?Number(e.target.value):e.target.value;}); box.querySelectorAll('[data-del]').forEach(el=>el.onclick=()=>{workingData.mapLots.splice(+el.dataset.del,1);drawLots();}); document.getElementById('addLot').onclick=()=>{const lot=clone(blank.mapLot); lot.id=uid('lot'); workingData.mapLots.push(lot);drawLots();}; }
+function drawDocuments(){
+  const box=document.getElementById('documentsEditor');
+  const docs=workingData.portal.documents||[];
+  const categoryOptions=docCategories.map(category=>`<option value='${escapeHtml(category)}'>${escapeHtml(category)}</option>`).join('');
+  box.innerHTML=`
+    <div class='doc-admin-form'>
+      <div class='grid two doc-admin-row'>
+        <input id='docName' placeholder='Document name'>
+        <select id='docCategory'>${categoryOptions}</select>
+        <input id='docUrl' placeholder='Document URL'>
+        <input id='docDescription' placeholder='Short description (optional)'>
+      </div>
+      <div id='documentMsg' class='form-message' role='status'></div>
+      <button id='addPortalDocument'>Add Document Link</button>
+      <p class='help'>Upload file storage is planned for the next storage phase. For now, add a Google Drive, PDF, or hosted file URL.</p>
+    </div>
+    <div class='doc-library'>
+      ${docCategories.map(category=>{
+        const items=docs.filter(doc=>(doc.category||'Forms')===category);
+        return `<section class='doc-category'><h3>${escapeHtml(category)} (${items.length})</h3>${items.map(doc=>`
+          <article class='doc-item'>
+            <strong>${escapeHtml(doc.name||'Untitled document')}</strong>
+            ${doc.description?`<p>${escapeHtml(doc.description)}</p>`:''}
+            ${doc.url?`<small>${escapeHtml(doc.url)}</small>`:''}
+            <button class='secondary danger' data-del-portal-doc='${escapeHtml(doc.id)}'>Remove Document</button>
+          </article>`).join('')||'<p class="help">No documents in this category.</p>'}</section>`;
+      }).join('')}
+    </div>`;
+  document.getElementById('addPortalDocument').onclick=async()=>{
+    const name=BWC.sanitize(document.getElementById('docName').value,140);
+    const category=document.getElementById('docCategory').value;
+    const url=BWC.sanitize(document.getElementById('docUrl').value,500);
+    const description=BWC.sanitize(document.getElementById('docDescription').value,240);
+    if(!name||!url){setMessage('documentMsg','Add a document name and URL.','error');return;}
+    docs.push({id:uid('doc'),name,category,description,url});
+    setMessage('documentMsg','Saving document link...','info');
+    await saveAdminChange('admin.document.added',`${category}: ${name}`,drawDocuments);
+  };
+  box.querySelectorAll('[data-del-portal-doc]').forEach(btn=>btn.onclick=async()=>{
+    const index=docs.findIndex(doc=>doc.id===btn.dataset.delPortalDoc);
+    const doc=docs[index];
+    if(index<0||!doc) return;
+    if(!await confirmDanger('Remove document',`Remove "${doc.name||'this document'}" from the portal document library?`,'Remove Document')) return;
+    docs.splice(index,1);
+    await saveAdminChange('admin.document.removed',`${doc.category||'Documents'}: ${doc.name||doc.id}`,drawDocuments);
+  });
+}
+
+function drawResources(){
+  const box=document.getElementById('resourcesEditor');
+  box.innerHTML=workingData.resources.map((r,i)=>`<div class='item grid two'><input value='${escapeHtml(r.title)}' data-i='${i}' data-k='title' placeholder='Title'><input value='${escapeHtml(r.url)}' data-i='${i}' data-k='url' placeholder='URL'><button class='secondary danger' data-del='${i}'>Remove</button></div>`).join('')+"<button id='addRes'>+ Add Resource</button>";
+  box.querySelectorAll('[data-k]').forEach(el=>el.oninput=(e)=>workingData.resources[+e.target.dataset.i][e.target.dataset.k]=e.target.value);
+  box.querySelectorAll('[data-del]').forEach(el=>el.onclick=async()=>{
+    const resource=workingData.resources[+el.dataset.del];
+    workingData.resources.splice(+el.dataset.del,1);
+    await saveAdminChange('admin.resource.removed',resource?.title||resource?.url||'resource',drawResources);
+  });
+  document.getElementById('addRes').onclick=async()=>{workingData.resources.push(clone(blank.resource));await saveAdminChange('admin.resource.added','resource',drawResources);};
+}
+function drawLots(){
+  const box=document.getElementById('lotsEditor');
+  box.innerHTML=workingData.mapLots.map((l,i)=>`<div class='item grid two'><input value='${escapeHtml(l.address)}' data-i='${i}' data-k='address' placeholder='Address'><input value='${escapeHtml(l.lat)}' data-i='${i}' data-k='lat' type='number' step='0.000001' placeholder='Latitude'><input value='${escapeHtml(l.lng)}' data-i='${i}' data-k='lng' type='number' step='0.000001' placeholder='Longitude'><button class='secondary danger' data-del='${i}'>Remove</button></div>`).join('')+"<button id='addLot'>+ Add Lot</button>";
+  box.querySelectorAll('[data-k]').forEach(el=>el.oninput=(e)=>{const i=+e.target.dataset.i,k=e.target.dataset.k; workingData.mapLots[i][k]=(k==='lat'||k==='lng')?Number(e.target.value):e.target.value;});
+  box.querySelectorAll('[data-del]').forEach(el=>el.onclick=async()=>{
+    const lot=workingData.mapLots[+el.dataset.del];
+    workingData.mapLots.splice(+el.dataset.del,1);
+    await saveAdminChange('admin.lot.removed',lot?.address||lot?.lot||'lot',drawLots);
+  });
+  document.getElementById('addLot').onclick=async()=>{const lot=clone(blank.mapLot); lot.id=uid('lot'); workingData.mapLots.push(lot);await saveAdminChange('admin.lot.added',lot.id,drawLots);};
+}
 
 function drawRequests(){
   const box=document.getElementById('requestReview');
@@ -151,16 +271,16 @@ function drawRequests(){
       </div>
       <button data-save-req='${i}'>Save Review Status</button>
     </div>`).join(''):'<p class="help">No resident requests have been submitted yet.</p>';
-  box.querySelectorAll('[data-save-req]').forEach(btn=>btn.onclick=()=>{
+  box.querySelectorAll('[data-save-req]').forEach(btn=>btn.onclick=async()=>{
     const index=Number(btn.dataset.saveReq);
     const req=requests[index];
     if(!req) return;
     req.status=box.querySelector(`[data-req-status="${index}"]`).value;
     req.adminNote=BWC.sanitize(box.querySelector(`[data-req-note="${index}"]`).value,240);
     req.updatedAt=new Date().toISOString();
-    BWC.logAction(workingData,'pin-admin','request.review',`${req.caseNumber||req.id}: ${req.status}`);
-    BWC.saveData(workingData);
+    await saveAdminChange('request.review',`${req.caseNumber||req.id}: ${req.status}`);
     drawRequests();
+    drawDashboardCounts();
     alert('Request status saved.');
   });
 }
@@ -183,21 +303,22 @@ function drawResidentApprovals(){
     ${active.filter(r=>!r.directoryOptIn).map(r=>rowCard(r,`<button data-optin-res='${escapeHtml(r.id)}' class='secondary'>Add To Directory</button>`)).join('')||'<p class="help">None.</p>'}
     <h3>Suspended Residents (${suspended.length})</h3>
     ${suspended.map(r=>rowCard(r,`<button data-approve-res='${escapeHtml(r.id)}'>Reactivate</button>`)).join('')||'<p class="help">None.</p>'}`;
-  box.querySelectorAll('[data-approve-res]').forEach(btn=>btn.onclick=()=>{const row=residents.find(r=>r.id===btn.dataset.approveRes); if(row){row.status='active'; BWC.logAction(workingData,'pin-admin','admin.approve',row.email); BWC.saveData(workingData); drawResidentApprovals(); alert('Resident approved.');}});
-  box.querySelectorAll('[data-suspend-res]').forEach(btn=>btn.onclick=()=>{const row=residents.find(r=>r.id===btn.dataset.suspendRes); if(row){row.status='suspended'; BWC.logAction(workingData,'pin-admin','admin.suspend',row.email); BWC.saveData(workingData); drawResidentApprovals(); alert('Resident suspended.');}});
-  box.querySelectorAll('[data-optout-res]').forEach(btn=>btn.onclick=()=>{const row=residents.find(r=>r.id===btn.dataset.optoutRes); if(row){row.directoryOptIn=false; BWC.logAction(workingData,'pin-admin','admin.directory.optout',row.email); BWC.saveData(workingData); drawResidentApprovals(); alert('Resident removed from directory but access remains active.');}});
-  box.querySelectorAll('[data-optin-res]').forEach(btn=>btn.onclick=()=>{const row=residents.find(r=>r.id===btn.dataset.optinRes); if(row){row.directoryOptIn=true; BWC.logAction(workingData,'pin-admin','admin.directory.optin',row.email); BWC.saveData(workingData); drawResidentApprovals(); alert('Resident added to directory.');}});
-  box.querySelectorAll('[data-remove-res]').forEach(btn=>btn.onclick=()=>{
+  box.querySelectorAll('[data-approve-res]').forEach(btn=>btn.onclick=async()=>{const row=residents.find(r=>r.id===btn.dataset.approveRes); if(row){row.status='active'; await saveAdminChange('admin.approve',row.email); drawResidentApprovals(); drawDashboardCounts(); alert('Resident approved.');}});
+  box.querySelectorAll('[data-suspend-res]').forEach(btn=>btn.onclick=async()=>{const row=residents.find(r=>r.id===btn.dataset.suspendRes); if(row){row.status='suspended'; await saveAdminChange('admin.suspend',row.email); drawResidentApprovals(); drawDashboardCounts(); alert('Resident suspended.');}});
+  box.querySelectorAll('[data-optout-res]').forEach(btn=>btn.onclick=async()=>{const row=residents.find(r=>r.id===btn.dataset.optoutRes); if(row){row.directoryOptIn=false; await saveAdminChange('admin.directory.optout',row.email); drawResidentApprovals(); alert('Resident removed from directory but access remains active.');}});
+  box.querySelectorAll('[data-optin-res]').forEach(btn=>btn.onclick=async()=>{const row=residents.find(r=>r.id===btn.dataset.optinRes); if(row){row.directoryOptIn=true; await saveAdminChange('admin.directory.optin',row.email); drawResidentApprovals(); alert('Resident added to directory.');}});
+  box.querySelectorAll('[data-remove-res]').forEach(btn=>btn.onclick=async()=>{
     const row=residents.find(r=>r.id===btn.dataset.removeRes);
     if(!row) return;
-    if(!confirm(`Remove ${row.name || row.email} from resident access and the directory?`)) return;
+    if(!await confirmDanger('Remove resident',`Remove ${row.name || row.email} from resident access and the directory? This cannot be undone from this screen.`,'Remove Resident')) return;
     BWC.removeResidentFromData(workingData,row.id,'pin-admin');
-    BWC.saveData(workingData);
+    await BWC.saveData(workingData);
     drawResidentApprovals();
+    drawDashboardCounts();
     alert('Resident removed.');
   });
 }
 
-document.getElementById('login').onclick=async()=>{if(document.getElementById('pin').value!==BWC.defaultPin){alert('Invalid PIN');return;}auth.style.display='none';dash.style.display='block';render();};
+document.getElementById('login').onclick=async()=>{if(document.getElementById('pin').value!==BWC.defaultPin){setMessage('adminLoginMsg','Invalid PIN. Please try again.','error');return;}setMessage('adminLoginMsg','Opening admin dashboard...','success');auth.style.display='none';dash.style.display='block';render();};
 BWC.wireSiteNav();
 </script></body></html>
