@@ -93,6 +93,20 @@ function ensurePortal(d){
   d.portal.rsvps=d.portal.rsvps||[];
   d.portal.auditLogs=d.portal.auditLogs||[];
   d.portal.deletedSeedResidentEmails=d.portal.deletedSeedResidentEmails||[];
+  d.portal.forumCategories=d.portal.forumCategories||[
+    {id:'general',name:'General Discussion',description:'General resident discussion and questions.'},
+    {id:'projects',name:'Projects',description:'Neighborhood project ideas and updates.'},
+    {id:'maintenance',name:'Maintenance',description:'Common area maintenance topics.'},
+    {id:'social',name:'Social Events',description:'Community gatherings and volunteer opportunities.'}
+  ];
+  d.portal.forumThreads=d.portal.forumThreads||[];
+  d.portal.forumPosts=d.portal.forumPosts||[];
+  d.portal.forumSubscriptions=d.portal.forumSubscriptions||[];
+  d.portal.newsletters=d.portal.newsletters||[];
+  d.portal.polls=d.portal.polls||[];
+  d.portal.pollResponses=d.portal.pollResponses||[];
+  d.portal.bulletins=d.portal.bulletins||[];
+  d.portal.notifications=d.portal.notifications||[];
 }
 function normalizeHouseholdContacts(resident){
   const contacts=Array.isArray(resident.householdContacts)?resident.householdContacts:[];
@@ -105,6 +119,15 @@ function normalizeHouseholdContacts(resident){
     cleaned.push({name:sanitize(resident.name,120),phone:sanitize(resident.phone,40),email:sanitize(resident.email,120).toLowerCase()});
   }
   resident.householdContacts=cleaned;
+  resident.notificationPreferences=resident.notificationPreferences||{};
+  if(resident.notificationPreferences.newsletters===undefined) resident.notificationPreferences.newsletters=true;
+  if(resident.notificationPreferences.mentions===undefined) resident.notificationPreferences.mentions=true;
+  if(resident.notificationPreferences.forumReplies===undefined) resident.notificationPreferences.forumReplies=true;
+  if(resident.notificationPreferences.bulletins===undefined) resident.notificationPreferences.bulletins=true;
+  resident.forumCategorySubscriptions=resident.forumCategorySubscriptions||{};
+  ['general','projects','maintenance','social'].forEach(category=>{
+    if(resident.forumCategorySubscriptions[category]===undefined) resident.forumCategorySubscriptions[category]=true;
+  });
   return cleaned;
 }
 function normalizeResidents(d){ ensurePortal(d); d.portal.residents.forEach(normalizeHouseholdContacts); }

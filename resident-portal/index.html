@@ -44,10 +44,128 @@ const $=id=>document.getElementById(id);
 const card=(t,b)=>`<article class='card'><h2>${t}</h2>${b}</article>`;
 const escapeHtml=(value)=>String(value||'').replace(/[&<>"']/g,(char)=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
 const setMessage=(id,text,type='error')=>{const el=$(id); if(!el) return; el.textContent=text||''; el.className=`form-message ${type} ${text?'show':''}`;};
+const linkifyText=(value)=>escapeHtml(value).replace(/\n/g,'<br>').replace(/(https?:\/\/[^\s<]+)/g,"<a href='$1' target='_blank' rel='noopener noreferrer'>$1</a>");
+const todayIso=()=>new Date().toISOString().slice(0,10);
+const isActiveWindow=(item)=>String(item.status||'Published')!=='Expired'&&(!item.startDate||item.startDate<=todayIso())&&(!item.expiresAt||item.expiresAt>=todayIso())&&(!item.endDate||item.endDate>=todayIso());
 let requestAttachment=null;
 const params=new URLSearchParams(location.search);
 const selectedLot=params.get('lot');
 const authMode=String(params.get('mode')||location.hash.replace('#','')||(selectedLot?'register':'signin')).toLowerCase();
+async function fileToAttachment(input){
+  const file=input?.files&&input.files[0];
+  if(!file) return {name:'',url:''};
+  return new Promise(resolve=>{
+    const reader=new FileReader();
+    reader.onload=()=>resolve({name:file.name,url:reader.result});
+    reader.readAsDataURL(file);
+  });
+}
+
+function residentDisplayName(resident){return resident?.name||resident?.email||'Resident';}
+function mentionsFrom(text){
+  const matches=String(text||'').match(/@[\w.-]+/g)||[];
+  return [...new Set(matches.map(match=>match.slice(1).toLowerCase()))];
+}
+function queueMentionNotifications(data,actor,body,context){
+  const mentions=mentionsFrom(body);
+  if(!mentions.length) return;
+  const residents=data.portal.residents||[];
+  mentions.forEach(handle=>{
+    const target=residents.find(r=>String(r.email||'').toLowerCase().startsWith(handle)||String(r.name||'').toLowerCase().replace(/\s+/g,'.')===handle);
+    if(target&&target.notificationPreferences?.mentions!==false){
+      data.portal.notifications.unshift({id:BWC.uid('ntf'),type:'mention',residentId:target.id,email:target.email,subject:'You were mentioned in the Resident Portal',message:`${residentDisplayName(actor)} mentioned you in ${context}.`,status:'queued',createdAt:new Date().toISOString()});
+    }
+  });
+}
+function renderPortalNav(){
+  const items=[
+    ['announcements','Announcements'],
+    ['events','Events & RSVPs'],
+    ['documents','Document Library'],
+    ['requests','Requests'],
+    ['forums','Forums'],
+    ['newsletters','Newsletters'],
+    ['polls','Polls'],
+    ['bulletins','Bulletin Board'],
+    ['directory','Resident Directory']
+  ];
+  return `<nav class='portal-nav portal-side-nav' aria-label='Resident portal sections'>${items.map(([id,label])=>`<a href='#${id}'>${label}</a>`).join('')}</nav>`;
+}
+function renderForums(data,resident){
+  const categories=data.portal.forumCategories||[];
+  const threads=data.portal.forumThreads||[];
+  const posts=data.portal.forumPosts||[];
+  const activeThreads=threads.filter(thread=>thread.status!=='removed');
+  const latestPost=(thread)=>posts.filter(post=>post.threadId===thread.id&&post.status!=='removed').sort((a,b)=>String(b.createdAt).localeCompare(String(a.createdAt)))[0];
+  const threadList=activeThreads.map(thread=>{
+    const category=categories.find(c=>c.id===thread.categoryId);
+    const threadPosts=posts.filter(post=>post.threadId===thread.id&&post.status!=='removed');
+    const latest=latestPost(thread);
+    return `<article class='comm-item' data-forum-thread-row data-category='${escapeHtml(thread.categoryId)}' data-keywords='${escapeHtml(`${thread.title} ${thread.authorName} ${category?.name||''} ${threadPosts.map(p=>p.body).join(' ')}`.toLowerCase())}'>
+      <div class='comm-item-head'><strong>${escapeHtml(thread.title)}</strong><span>${escapeHtml(category?.name||'Forum')}</span><small>${escapeHtml(thread.locked?'Locked':'Open')} - ${escapeHtml(thread.createdAt?.slice(0,10)||'')}</small></div>
+      <p class='help'>${threadPosts.length} posts${latest?` - Latest by ${escapeHtml(latest.authorName||'Resident')}`:''}</p>
+      <div class='thread-posts'>${threadPosts.slice(0,6).map(post=>`<div class='forum-post ${post.parentId?'nested':''}'><strong>${escapeHtml(post.authorName||'Resident')}</strong><small>${escapeHtml(post.createdAt?.slice(0,16).replace('T',' ')||'')}</small><p>${linkifyText(post.body)}</p>${post.attachmentUrl?`<a href='${escapeHtml(post.attachmentUrl)}' target='_blank' rel='noopener noreferrer'>${escapeHtml(post.attachmentName||'Attachment')}</a>`:''}<button class='secondary' data-quote-post='${escapeHtml(post.id)}'>Quote / Reply</button><button class='secondary' data-report-post='${escapeHtml(post.id)}'>Report Post</button></div>`).join('')}</div>
+      ${thread.locked?'<p class="help">This thread is locked by an admin.</p>':`<div class='forum-reply-box'><textarea data-forum-reply='${escapeHtml(thread.id)}' placeholder='Reply to this thread. Use @name or @email to mention a neighbor.'></textarea><input data-forum-file='${escapeHtml(thread.id)}' type='file'><button data-submit-reply='${escapeHtml(thread.id)}'>Post Reply</button></div>`}
+    </article>`;
+  }).join('')||'<p class="help">No forum threads yet. Start the first conversation.</p>';
+  const categoryOptions=categories.map(category=>`<option value='${escapeHtml(category.id)}'>${escapeHtml(category.name)}</option>`).join('');
+  const categoryFilterOptions=`<option value='all'>All Categories</option>${categoryOptions}`;
+  const prefs=resident.forumCategorySubscriptions||{};
+  const subscriptionControls=categories.map(category=>`<label class='inline-check'><input type='checkbox' data-forum-category-sub='${escapeHtml(category.id)}' ${prefs[category.id]!==false?'checked':''}> Notify me about ${escapeHtml(category.name)}</label>`).join('');
+  return card('Discussion Forums',`
+    <section id='forums' class='portal-section'>
+      <div class='communication-toolbar'><input id='forumSearch' type='search' placeholder='Search forums by keyword, author, category, or date'><select id='forumFilter'>${categoryFilterOptions}</select></div>
+      <details><summary>Forum notification preferences</summary>${subscriptionControls}</details>
+      <div id='forumMsg' class='form-message' role='status'></div>
+      <div class='comm-form'><h3>Create Thread</h3><input id='forumTitle' placeholder='Thread title'><textarea id='forumBody' placeholder='Start a discussion. Basic links, line breaks, quoting, and @mentions are supported.'></textarea><input id='forumAttachment' type='file'><button id='createThread'>Create Thread</button></div>
+      <div class='comm-list'>${threadList}</div>
+    </section>`);
+}
+function renderNewsletters(data,currentResident){
+  const newsletters=(data.portal.newsletters||[]).filter(n=>String(n.status||'Published')!=='Draft').sort((a,b)=>String(b.sentAt||b.createdAt||'').localeCompare(String(a.sentAt||a.createdAt||'')));
+  const prefs=currentResident.notificationPreferences||{};
+  return card('Newsletters Archive',`
+    <section id='newsletters' class='portal-section'>
+      <div id='prefMsg' class='form-message' role='status'></div>
+      <label class='inline-check'><input id='newsletterOptIn' type='checkbox' ${prefs.newsletters!==false?'checked':''}> Email me newsletters and community updates</label>
+      <label class='inline-check'><input id='bulletinOptIn' type='checkbox' ${prefs.bulletins!==false?'checked':''}> Notify me about bulletin board posts</label>
+      <div class='comm-list'>${newsletters.map(n=>`<article class='comm-item'><div class='comm-item-head'><strong>${escapeHtml(n.subject||'Newsletter')}</strong><small>${escapeHtml((n.sentAt||n.createdAt||'').slice(0,10))}</small></div><p>${linkifyText(n.body||'')}</p>${n.attachmentUrl?`<a href='${escapeHtml(n.attachmentUrl)}' target='_blank' rel='noopener noreferrer'>${escapeHtml(n.attachmentName||'Attachment')}</a>`:''}</article>`).join('')||'<p class="help">No newsletters have been published yet.</p>'}</div>
+    </section>`);
+}
+function renderPolls(data,resident){
+  const polls=(data.portal.polls||[]).filter(p=>String(p.status||'Open')!=='Archived').sort((a,b)=>String(b.createdAt||'').localeCompare(String(a.createdAt||'')));
+  const responses=data.portal.pollResponses||[];
+  return card('Polls & Surveys',`
+    <section id='polls' class='portal-section'>
+      <div id='pollMsg' class='form-message' role='status'></div>
+      <div class='comm-list'>${polls.map(poll=>{
+        const myResponse=responses.find(r=>r.pollId===poll.id&&r.residentId===resident.id);
+        const pollResponses=responses.filter(r=>r.pollId===poll.id);
+        const options=Array.isArray(poll.options)?poll.options:String(poll.options||'').split('|').filter(Boolean);
+        const closed=String(poll.status||'Open')==='Closed'||!isActiveWindow(poll);
+        const results=options.map(option=>{
+          const count=pollResponses.filter(r=>(Array.isArray(r.answers)?r.answers:[r.answers]).includes(option)).length;
+          const pct=pollResponses.length?Math.round(count/pollResponses.length*100):0;
+          return `<div class='poll-bar'><span>${escapeHtml(option)}</span><b style='width:${pct}%'></b><small>${count}</small></div>`;
+        }).join('');
+        const input=poll.answerType==='free-text'
+          ? `<textarea data-poll-free='${escapeHtml(poll.id)}' placeholder='Share your response'></textarea>`
+          : options.map(option=>`<label class='inline-check'><input name='poll-${escapeHtml(poll.id)}' value='${escapeHtml(option)}' type='${poll.answerType==='multiple'?'checkbox':'radio'}'> ${escapeHtml(option)}</label>`).join('');
+        return `<article class='comm-item'><div class='comm-item-head'><strong>${escapeHtml(poll.question)}</strong><span>${escapeHtml(poll.answerType||'single')}</span><small>${escapeHtml(poll.startDate||'')} to ${escapeHtml(poll.endDate||'')}</small></div>${myResponse?'<p class="help">Your response has been recorded.</p>':closed?'<p class="help">This poll is closed.</p>':`${input}<button data-submit-poll='${escapeHtml(poll.id)}'>Submit Response</button>`}${poll.showResults||closed?`<div class='poll-results'>${results||'<p class="help">No responses yet.</p>'}</div>`:''}</article>`;
+      }).join('')||'<p class="help">No polls or surveys are open right now.</p>'}</div>
+    </section>`);
+}
+function renderBulletins(data,resident){
+  const bulletins=(data.portal.bulletins||[]).filter(b=>String(b.status||'Published')==='Published'&&isActiveWindow(b)).sort((a,b)=>String(b.createdAt||'').localeCompare(String(a.createdAt||'')));
+  const categories=[...new Set(['All','Announcements','Reminders','Lost & Found','For Sale','Social',...bulletins.map(b=>b.category||'Announcements')])];
+  return card('Digital Bulletin Board',`
+    <section id='bulletins' class='portal-section'>
+      <div class='communication-toolbar'><input id='bulletinSearch' type='search' placeholder='Search bulletin board'><select id='bulletinFilter'>${categories.map(c=>`<option>${escapeHtml(c)}</option>`).join('')}</select></div>
+      <div id='bulletinMsg' class='form-message' role='status'></div>
+      <details><summary>Submit a community bulletin for review</summary><div class='comm-form'><input id='residentBulletinTitle' placeholder='Title'><select id='residentBulletinCategory'><option>Lost & Found</option><option>For Sale</option><option>Social</option><option>Reminders</option></select><textarea id='residentBulletinBody' placeholder='Post details'></textarea><button id='submitResidentBulletin'>Submit for Moderation</button></div></details>
+      <div class='comm-list'>${bulletins.map(b=>`<article class='comm-item' data-bulletin-row data-category='${escapeHtml(b.category||'Announcements')}' data-keywords='${escapeHtml(`${b.title} ${b.body} ${b.category} ${b.authorName}`.toLowerCase())}'><div class='comm-item-head'><strong>${escapeHtml(b.title)}</strong><span>${escapeHtml(b.category||'Announcements')}</span><small>${escapeHtml((b.startDate||b.createdAt||'').slice(0,10))}</small></div><p>${linkifyText(b.body||'')}</p>${b.attachmentUrl?`<a href='${escapeHtml(b.attachmentUrl)}' target='_blank' rel='noopener noreferrer'>${escapeHtml(b.attachmentName||'Attachment')}</a>`:''}</article>`).join('')||'<p class="help">No bulletin board posts are active right now.</p>'}</div>
+    </section>`);
+}
 
 async function authView(){
   const data=await BWC.getData();
@@ -117,11 +235,16 @@ async function render(){
 
   $('portal').innerHTML=
     card('Welcome',`<p><strong>${resident.name}</strong> (${resident.role})</p><button id='logout' class='secondary'>Logout</button>`)+
-    `<div class='grid two'>${card('Announcements',`<ul>${announcements}</ul>`)}${card('Events & RSVPs',`<ul>${events}</ul>`)}</div>`+
+    renderPortalNav()+
+    `<div id='announcements' class='grid two'>${card('Announcements',`<ul>${announcements}</ul><p><a href='#newsletters'>Open newsletter archive</a></p>`)}${card('Events & RSVPs',`<section id='events'><ul>${events}</ul></section>`)}</div>`+
     `${card('Neighborhood Projects',`<div class='request-list'>${projects}</div>`)}`+
-    `${card('Document Library',`<div class='doc-library'>${docs}</div>`)}`
-    +`<div class='grid two'>${card('Requests',`<div class='request-list'>${myReq}</div><h3>Submit Request</h3><div id='requestMsg' class='form-message' role='status'></div><select id='reqType'><option>Architectural Change</option><option>Maintenance</option><option>General Question</option></select><textarea id='reqText' placeholder='Describe the request, project scope, materials, colors, timing, or issue.'></textarea><input id='reqFileLink' placeholder='Optional link to plans, photos, or documents'><label class='buttonlike secondary'>Upload File<input id='reqUpload' type='file' hidden></label><div id='reqAttachmentName' class='map-summary'></div><button id='submitReq'>Submit Request</button>`)}`+
-    `${card('Resident Directory',`<label class='inline-check'><input id='optin' type='checkbox' ${currentResident.directoryOptIn?'checked':''}> List my household in the directory</label><input id='dirPhone' value='${escapeHtml(currentResident.phone||'')}' placeholder='Directory phone number'><div id='dir'>${dir}</div><a class='buttonlike secondary' href='/directory/'>Open Directory & Edit Listing</a><button id='removeMyPortalAccount' class='secondary danger' type='button'>Remove My Resident Account</button>`)}</div>`+
+    `${card('Document Library',`<section id='documents'><div class='doc-library'>${docs}</div></section>`)}`
+    +`<div class='grid two'>${card('Requests',`<section id='requests'><div class='request-list'>${myReq}</div><h3>Submit Request</h3><div id='requestMsg' class='form-message' role='status'></div><select id='reqType'><option>Architectural Change</option><option>Maintenance</option><option>General Question</option></select><textarea id='reqText' placeholder='Describe the request, project scope, materials, colors, timing, or issue.'></textarea><input id='reqFileLink' placeholder='Optional link to plans, photos, or documents'><label class='buttonlike secondary'>Upload File<input id='reqUpload' type='file' hidden></label><div id='reqAttachmentName' class='map-summary'></div><button id='submitReq'>Submit Request</button></section>`)}`+
+    `${card('Resident Directory',`<section id='directory'><label class='inline-check'><input id='optin' type='checkbox' ${currentResident.directoryOptIn?'checked':''}> List my household in the directory</label><input id='dirPhone' value='${escapeHtml(currentResident.phone||'')}' placeholder='Directory phone number'><div id='dir'>${dir}</div><a class='buttonlike secondary' href='/directory/'>Open Directory & Edit Listing</a><button id='removeMyPortalAccount' class='secondary danger' type='button'>Remove My Resident Account</button></section>`)}</div>`+
+    renderForums(data,currentResident)+
+    renderNewsletters(data,currentResident)+
+    renderPolls(data,currentResident)+
+    renderBulletins(data,currentResident)+
     `<div class='grid two'>${card('Parcel Map',`<p>Hover over a home to view parcel details and opted-in resident directory information.</p><a class='buttonlike' href='/neighborhood-map/'>Open Public Parcel Map</a>`)}</div>`+
     card('Resident Map & Directory Lookup',`<section class='map-workspace portal-map-workspace'><aside class='map-panel' aria-label='Lot lookup'><label for='lotSearch'>Find a lot or address</label><input id='lotSearch' type='search' placeholder='Lot, address, parcel'><div id='lotSummary' class='map-summary'></div><div id='lotDetails' class='lot-details'></div><div id='lotList' class='lot-list' aria-label='Neighborhood lots'></div></aside><div id='map' class='parcel-map portal-parcel-map' data-directory='true' aria-label='Resident directory parcel map'></div></section>`)+
     card('Payments Planning',`<p>Payment integration evaluation target: Stripe vs PayPal/Braintree for cards, ACH, Apple Pay, Venmo.</p>`)+
@@ -136,6 +259,81 @@ async function render(){
   $('submitReq').onclick=async()=>{const description=BWC.sanitize($('reqText').value,600); if(!description) return setMessage('requestMsg','Enter request details before submitting.','error'); const type=$('reqType').value; const fileLink=BWC.sanitize($('reqFileLink').value,300); setMessage('requestMsg','Submitting request...','info'); data.portal.requests.push({id:BWC.uid('req'),caseNumber:`${type==='Architectural Change'?'ARC':'REQ'}-${Date.now()}`,residentId:resident.id,residentName:currentResident.name,residentEmail:currentResident.email,lot:currentResident.lot||'',parcel:currentResident.parcel||'',address:currentResident.address||'',type,status:'Submitted',description,fileLink,attachmentName:requestAttachment?.name||'',attachmentUrl:requestAttachment?.url||'',createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()}); requestAttachment=null; BWC.logAction(data,resident.id,'request.submitted',type); await BWC.saveData(data); setMessage('requestMsg','Request submitted.','success'); render();};
   $('optin').onchange=()=>{currentResident.directoryOptIn=$('optin').checked; currentResident.phone=BWC.sanitize($('dirPhone').value,40); BWC.normalizeHouseholdContacts(currentResident); BWC.logAction(data,resident.id,'directory.optin',currentResident.directoryOptIn?'enabled':'disabled'); BWC.saveData(data); render();};
   $('dirPhone').onchange=()=>{currentResident.phone=BWC.sanitize($('dirPhone').value,40); BWC.normalizeHouseholdContacts(currentResident); BWC.logAction(data,resident.id,'directory.phone.updated','phone updated'); BWC.saveData(data); render();};
+
+  const savePortalModule=async(action,details)=>{BWC.logAction(data,resident.id,action,details||''); await BWC.saveData(data); await render();};
+  document.querySelectorAll('[data-forum-category-sub]').forEach(input=>input.onchange=async()=>{
+    currentResident.forumCategorySubscriptions=currentResident.forumCategorySubscriptions||{};
+    currentResident.forumCategorySubscriptions[input.dataset.forumCategorySub]=input.checked;
+    await savePortalModule('forum.category.subscription',`${input.dataset.forumCategorySub}: ${input.checked?'subscribed':'unsubscribed'}`);
+  });
+  const filterForums=()=>{const q=$('forumSearch').value.toLowerCase(); const category=$('forumFilter').value; document.querySelectorAll('[data-forum-thread-row]').forEach(row=>{const okCategory=category==='all'||row.dataset.category===category; const okSearch=row.dataset.keywords.includes(q); row.style.display=okCategory&&okSearch?'':'none';});};
+  $('forumSearch').oninput=filterForums;
+  $('forumFilter').onchange=filterForums;
+  $('createThread').onclick=async()=>{
+    const title=BWC.sanitize($('forumTitle').value,140);
+    const body=BWC.sanitize($('forumBody').value,2000);
+    if(!title||!body) return setMessage('forumMsg','Add a title and message before creating a thread.','error');
+    const attachment=await fileToAttachment($('forumAttachment'));
+    const thread={id:BWC.uid('thread'),categoryId:$('forumCategory').value,title,authorId:resident.id,authorName:residentDisplayName(currentResident),status:'open',locked:false,pinned:false,createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()};
+    const post={id:BWC.uid('post'),threadId:thread.id,parentId:'',authorId:resident.id,authorName:residentDisplayName(currentResident),body,attachmentName:attachment.name,attachmentUrl:attachment.url,mentions:mentionsFrom(body),reported:false,createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()};
+    data.portal.forumThreads.unshift(thread);
+    data.portal.forumPosts.unshift(post);
+    queueMentionNotifications(data,currentResident,body,'a forum thread');
+    await savePortalModule('forum.thread.created',title);
+  };
+  document.querySelectorAll('[data-submit-reply]').forEach(btn=>btn.onclick=async()=>{
+    const threadId=btn.dataset.submitReply;
+    const textarea=document.querySelector(`[data-forum-reply="${threadId}"]`);
+    const body=BWC.sanitize(textarea?.value,2000);
+    if(!body) return;
+    const attachment=await fileToAttachment(document.querySelector(`[data-forum-file="${threadId}"]`));
+    const parentId=textarea?.dataset.parentId||'';
+    data.portal.forumPosts.unshift({id:BWC.uid('post'),threadId,parentId,authorId:resident.id,authorName:residentDisplayName(currentResident),body,attachmentName:attachment.name,attachmentUrl:attachment.url,mentions:mentionsFrom(body),reported:false,createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()});
+    const thread=data.portal.forumThreads.find(t=>t.id===threadId);
+    if(thread) thread.updatedAt=new Date().toISOString();
+    queueMentionNotifications(data,currentResident,body,'a forum reply');
+    await savePortalModule('forum.reply.created',threadId);
+  });
+  document.querySelectorAll('[data-quote-post]').forEach(btn=>btn.onclick=()=>{
+    const post=data.portal.forumPosts.find(p=>p.id===btn.dataset.quotePost);
+    if(!post) return;
+    const textarea=document.querySelector(`[data-forum-reply="${post.threadId}"]`);
+    if(textarea){textarea.value=`> ${post.authorName || 'Resident'} wrote: ${post.body}\n\n`; textarea.dataset.parentId=post.id; textarea.focus();}
+  });
+  document.querySelectorAll('[data-report-post]').forEach(btn=>btn.onclick=async()=>{
+    const post=data.portal.forumPosts.find(p=>p.id===btn.dataset.reportPost);
+    if(!post) return;
+    post.reported=true;
+    post.reportedBy=resident.id;
+    post.reportedAt=new Date().toISOString();
+    await savePortalModule('forum.post.reported',post.id);
+  });
+  $('newsletterOptIn').onchange=async()=>{currentResident.notificationPreferences=currentResident.notificationPreferences||{}; currentResident.notificationPreferences.newsletters=$('newsletterOptIn').checked; await savePortalModule('resident.newsletter.preference',String($('newsletterOptIn').checked));};
+  $('bulletinOptIn').onchange=async()=>{currentResident.notificationPreferences=currentResident.notificationPreferences||{}; currentResident.notificationPreferences.bulletins=$('bulletinOptIn').checked; await savePortalModule('resident.bulletin.preference',String($('bulletinOptIn').checked));};
+  document.querySelectorAll('[data-submit-poll]').forEach(btn=>btn.onclick=async()=>{
+    const poll=data.portal.polls.find(p=>p.id===btn.dataset.submitPoll);
+    if(!poll||data.portal.pollResponses.some(r=>r.pollId===poll.id&&r.residentId===resident.id)) return;
+    let answers=[],freeText='';
+    if(poll.answerType==='free-text'){
+      freeText=BWC.sanitize(document.querySelector(`[data-poll-free="${poll.id}"]`)?.value,1200);
+      if(!freeText) return setMessage('pollMsg','Enter a response before submitting.','error');
+    }else{
+      answers=[...document.querySelectorAll(`[name="poll-${poll.id}"]:checked`)].map(input=>input.value);
+      if(!answers.length) return setMessage('pollMsg','Choose an answer before submitting.','error');
+    }
+    data.portal.pollResponses.push({id:BWC.uid('pollresp'),pollId:poll.id,residentId:resident.id,residentName:poll.anonymous?'':residentDisplayName(currentResident),answers,freeText,anonymous:!!poll.anonymous,createdAt:new Date().toISOString()});
+    await savePortalModule('poll.response.created',poll.question||poll.id);
+  });
+  const filterBulletins=()=>{const q=$('bulletinSearch').value.toLowerCase(); const category=$('bulletinFilter').value; document.querySelectorAll('[data-bulletin-row]').forEach(row=>{const okCategory=category==='All'||row.dataset.category===category; const okSearch=row.dataset.keywords.includes(q); row.style.display=okCategory&&okSearch?'':'none';});};
+  $('bulletinSearch').oninput=filterBulletins;
+  $('bulletinFilter').onchange=filterBulletins;
+  $('submitResidentBulletin').onclick=async()=>{
+    const title=BWC.sanitize($('residentBulletinTitle').value,140);
+    const body=BWC.sanitize($('residentBulletinBody').value,1600);
+    if(!title||!body) return setMessage('bulletinMsg','Add a title and post details.','error');
+    data.portal.bulletins.unshift({id:BWC.uid('blt'),title,category:$('residentBulletinCategory').value,body,authorId:resident.id,authorName:residentDisplayName(currentResident),status:'Pending Review',startDate:todayIso(),expiresAt:'',attachmentName:'',attachmentUrl:'',createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()});
+    await savePortalModule('bulletin.submitted',title);
+  };
 
   if(resident.role==='admin'){
     const pending=(data.portal.residents||[]).filter(r=>r.status==='pending').map(r=>`<div class='item'><strong>${r.name}</strong><br>${r.address||'No address'}<br><small>${r.email}${r.phone?` · ${r.phone}`:''}${r.lot?` · Lot ${r.lot}`:''}${r.parcel?` · Parcel ${r.parcel}`:''} · Directory: ${r.directoryOptIn?'Yes':'No'}</small><button data-approve='${r.id}'>Approve${r.directoryOptIn?' & Add to Directory':''}</button> <button data-deny='${r.id}' class='secondary danger'>Suspend</button></div>`).join('')||'No pending approvals';

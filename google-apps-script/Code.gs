@@ -6,6 +6,15 @@ const TABS = {
   requests: ['id','caseNumber','type','status','description','residentId','residentName','residentEmail','lot','parcel','address','fileLink','attachmentName','attachmentUrl','adminNote','createdAt','updatedAt'],
   documents: ['id','name','category','url','description','driveFileId'],
   audit_logs: ['id','timestamp','actorId','action','details'],
+  forum_categories: ['id','name','description','createdAt'],
+  forum_threads: ['id','categoryId','title','authorId','authorName','status','locked','pinned','createdAt','updatedAt'],
+  forum_posts: ['id','threadId','parentId','authorId','authorName','body','attachmentName','attachmentUrl','mentions','reported','createdAt','updatedAt'],
+  forum_subscriptions: ['id','residentId','categoryId','threadId','subscribed','updatedAt'],
+  newsletters: ['id','subject','body','attachmentName','attachmentUrl','status','sendAt','sentAt','expiresAt','recipientCount','createdAt'],
+  polls: ['id','question','answerType','options','startDate','endDate','anonymous','showResults','status','createdAt'],
+  poll_responses: ['id','pollId','residentId','residentName','answers','freeText','anonymous','createdAt'],
+  bulletins: ['id','title','category','body','authorId','authorName','status','startDate','expiresAt','attachmentName','attachmentUrl','createdAt','updatedAt'],
+  notifications: ['id','type','residentId','email','subject','message','status','createdAt'],
   directory: ['name','address','email','phone','optIn','updatedAt'],
   map_lots: ['id','lot','address','city','state','zip','parcel','phase','lat','lng','zillowUrl']
 };
@@ -42,6 +51,15 @@ function saveState(data) {
   writeRows(sheet, 'requests', TABS.requests, (((data.portal || {}).requests) || []));
   writeRows(sheet, 'documents', TABS.documents, (((data.portal || {}).documents) || []));
   writeRows(sheet, 'audit_logs', TABS.audit_logs, (((data.portal || {}).auditLogs) || []));
+  writeRows(sheet, 'forum_categories', TABS.forum_categories, (((data.portal || {}).forumCategories) || []));
+  writeRows(sheet, 'forum_threads', TABS.forum_threads, (((data.portal || {}).forumThreads) || []));
+  writeRows(sheet, 'forum_posts', TABS.forum_posts, (((data.portal || {}).forumPosts) || []));
+  writeRows(sheet, 'forum_subscriptions', TABS.forum_subscriptions, (((data.portal || {}).forumSubscriptions) || []));
+  writeRows(sheet, 'newsletters', TABS.newsletters, (((data.portal || {}).newsletters) || []));
+  writeRows(sheet, 'polls', TABS.polls, (((data.portal || {}).polls) || []));
+  writeRows(sheet, 'poll_responses', TABS.poll_responses, (((data.portal || {}).pollResponses) || []));
+  writeRows(sheet, 'bulletins', TABS.bulletins, (((data.portal || {}).bulletins) || []));
+  writeRows(sheet, 'notifications', TABS.notifications, (((data.portal || {}).notifications) || []));
   writeRows(sheet, 'directory', TABS.directory, data.directory || []);
   writeRows(sheet, 'map_lots', TABS.map_lots, data.mapLots || []);
 }

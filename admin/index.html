@@ -76,7 +76,10 @@ function drawDashboardCounts(){
   box.innerHTML=`
     <div class='dashboard-count'><strong>${pendingResidents}</strong><span>Pending residents</span></div>
     <div class='dashboard-count'><strong>${pendingRequestCount('architectural')}</strong><span>Pending architectural requests</span></div>
-    <div class='dashboard-count'><strong>${pendingRequestCount('maintenance')}</strong><span>Pending maintenance requests</span></div>`;
+    <div class='dashboard-count'><strong>${pendingRequestCount('maintenance')}</strong><span>Pending maintenance requests</span></div>
+    <div class='dashboard-count'><strong>${(workingData.portal.bulletins||[]).filter(b=>b.status==='Pending Review').length}</strong><span>Pending bulletins</span></div>
+    <div class='dashboard-count'><strong>${(workingData.portal.forumPosts||[]).filter(p=>p.reported).length}</strong><span>Reported forum posts</span></div>
+    <div class='dashboard-count'><strong>${(workingData.portal.polls||[]).filter(p=>p.status!=='Archived').length}</strong><span>Active polls</span></div>`;
 }
 
 async function handleFileToDataUrl(input,cb){
@@ -103,6 +106,10 @@ async function render(){
     <div class='card'><h2>Dashboard Counts</h2><div id='dashboardCounts' class='dashboard-counts'></div></div>
     <div class='card approval-card'><h2>Resident Directory Management</h2><p class='help'>Approve new residents, remove directory listings, or remove resident access entirely.</p><div id='residentApprovals'></div></div>
     <div class='card'><h2>Architectural & Resident Requests</h2><p class='help'>Review submitted requests, update status, and add notes residents can see in their portal.</p><div id='requestReview'></div></div>
+    <div class='card'><h2>Forum Moderation</h2><p class='help'>Lock threads, remove reported posts, and keep a moderation audit trail.</p><div id='forumModeration'></div></div>
+    <div class='card'><h2>Newsletter & Announcement System</h2><p class='help'>Draft newsletters for opted-in residents. Sending is logged here; external delivery can connect to SendGrid or Mailchimp next.</p><div id='newsletterEditor'></div></div>
+    <div class='card'><h2>Polls & Surveys</h2><p class='help'>Create resident polls, surveys, date windows, and result visibility.</p><div id='pollsEditor'></div></div>
+    <div class='card'><h2>Digital Bulletin Board</h2><p class='help'>Publish board posts and review resident-submitted posts.</p><div id='bulletinsEditor'></div></div>
     <div class='card'><h2>Portal Document Library</h2><p class='help'>Add resident-only document links by category. File upload can be added once permanent storage is selected.</p><div id='documentsEditor'></div></div>
     <div class='card'><h2>About Page</h2><div id='aboutEditor'></div></div>
     <div class='card'><h2>Portal Upcoming Events</h2><p class='help'>Resident-only event details and RSVPs display inside the Resident Portal.</p><div id='eventsEditor'></div></div>
@@ -111,7 +118,7 @@ async function render(){
     <div class='card'><h2>Neighborhood Map Lots</h2><div id='lotsEditor'></div></div>
     <div class='card'><h2>Resident Submissions</h2><p>Contacts: ${workingData.contacts.length} | Subscribers: ${workingData.subscribers.length} | RSVPs: ${workingData.rsvps.length}</p></div>`;
 
-  drawDashboardCounts(); drawAbout(); drawEvents(); drawProjects(); drawResources(); drawLots(); drawDocuments(); drawResidentApprovals(); drawRequests();
+  drawDashboardCounts(); drawAbout(); drawEvents(); drawProjects(); drawResources(); drawLots(); drawDocuments(); drawResidentApprovals(); drawRequests(); drawForumModeration(); drawNewsletters(); drawPolls(); drawBulletins();
   wireGlobalActions();
 }
 
@@ -130,7 +137,7 @@ function wireGlobalActions(){
     catch{alert('That file is not valid JSON.');}
   };
 }
-function renderWithCurrent(){ drawDashboardCounts(); drawAbout(); drawEvents(); drawProjects(); drawResources(); drawLots(); drawDocuments(); drawResidentApprovals(); drawRequests(); }
+function renderWithCurrent(){ drawDashboardCounts(); drawAbout(); drawEvents(); drawProjects(); drawResources(); drawLots(); drawDocuments(); drawResidentApprovals(); drawRequests(); drawForumModeration(); drawNewsletters(); drawPolls(); drawBulletins(); }
 
 function drawAbout(){
   const box=document.getElementById('aboutEditor');
@@ -283,6 +290,126 @@ function drawRequests(){
     drawDashboardCounts();
     alert('Request status saved.');
   });
+}
+
+function drawForumModeration(){
+  const box=document.getElementById('forumModeration');
+  if(!box) return;
+  const categories=workingData.portal.forumCategories||[];
+  const threads=workingData.portal.forumThreads||[];
+  const posts=workingData.portal.forumPosts||[];
+  box.innerHTML=threads.length?threads.map(thread=>{
+    const category=categories.find(c=>c.id===thread.categoryId);
+    const threadPosts=posts.filter(post=>post.threadId===thread.id&&post.status!=='removed');
+    return `<div class='item'><div class='request-admin-head'><strong>${escapeHtml(thread.title)}</strong><span>${escapeHtml(category?.name||'Forum')}</span><b>${thread.locked?'Locked':'Open'}</b></div><small>${threadPosts.length} posts - Started by ${escapeHtml(thread.authorName||'Resident')}</small><button class='secondary' data-lock-thread='${escapeHtml(thread.id)}'>${thread.locked?'Unlock Thread':'Lock Thread'}</button><button class='secondary danger' data-remove-thread='${escapeHtml(thread.id)}'>Remove Thread</button>${threadPosts.map(post=>`<div class='forum-post ${post.reported?'reported':''}'><strong>${escapeHtml(post.authorName||'Resident')}</strong>${post.reported?'<b>Reported</b>':''}<p>${escapeHtml(post.body||'')}</p><button class='secondary danger' data-remove-post='${escapeHtml(post.id)}'>Remove Post</button><button class='secondary' data-clear-report='${escapeHtml(post.id)}'>Clear Report</button></div>`).join('')}</div>`;
+  }).join(''):'<p class="help">No forum threads yet.</p>';
+  box.querySelectorAll('[data-lock-thread]').forEach(btn=>btn.onclick=async()=>{
+    const thread=threads.find(item=>item.id===btn.dataset.lockThread);
+    if(!thread) return;
+    thread.locked=!thread.locked;
+    await saveAdminChange('admin.forum.thread.lock',`${thread.title}: ${thread.locked?'locked':'unlocked'}`,drawForumModeration);
+  });
+  box.querySelectorAll('[data-remove-thread]').forEach(btn=>btn.onclick=async()=>{
+    const thread=threads.find(item=>item.id===btn.dataset.removeThread);
+    if(!thread||!await confirmDanger('Remove forum thread',`Remove "${thread.title}" and hide its posts?`,'Remove Thread')) return;
+    thread.status='removed';
+    posts.filter(post=>post.threadId===thread.id).forEach(post=>post.status='removed');
+    await saveAdminChange('admin.forum.thread.removed',thread.title,drawForumModeration);
+  });
+  box.querySelectorAll('[data-remove-post]').forEach(btn=>btn.onclick=async()=>{
+    const post=posts.find(item=>item.id===btn.dataset.removePost);
+    if(!post||!await confirmDanger('Remove forum post','Remove this forum post from resident view?','Remove Post')) return;
+    post.status='removed';
+    post.reported=false;
+    await saveAdminChange('admin.forum.post.removed',post.id,drawForumModeration);
+  });
+  box.querySelectorAll('[data-clear-report]').forEach(btn=>btn.onclick=async()=>{
+    const post=posts.find(item=>item.id===btn.dataset.clearReport);
+    if(!post) return;
+    post.reported=false;
+    await saveAdminChange('admin.forum.report.cleared',post.id,drawForumModeration);
+  });
+}
+
+function drawNewsletters(){
+  const box=document.getElementById('newsletterEditor');
+  if(!box) return;
+  const newsletters=workingData.portal.newsletters||[];
+  const recipients=(workingData.portal.residents||[]).filter(r=>r.status==='active'&&r.email&&r.notificationPreferences?.newsletters!==false);
+  box.innerHTML=`<div class='doc-admin-form'><input id='newsletterSubject' placeholder='Newsletter subject'><textarea id='newsletterBody' placeholder='Newsletter body'></textarea><div class='grid two'><input id='newsletterSendAt' type='datetime-local'><input id='newsletterExpiresAt' type='date'></div><input id='newsletterAttachmentUrl' placeholder='Optional attachment URL'><button id='saveNewsletterDraft'>Save Draft</button><button id='sendNewsletterNow'>Send / Publish Now</button><p class='help'>Estimated opted-in recipients: ${recipients.length}. External email delivery is queued for provider integration; this logs the send and publishes the archive item.</p></div>${newsletters.map(n=>`<div class='item'><strong>${escapeHtml(n.subject||'Newsletter')}</strong><br><small>${escapeHtml(n.status||'Draft')} - ${escapeHtml((n.sentAt||n.sendAt||n.createdAt||'').slice(0,16).replace('T',' '))} - ${Number(n.recipientCount||0)} recipients</small><p>${escapeHtml(n.body||'')}</p><button class='secondary danger' data-remove-newsletter='${escapeHtml(n.id)}'>Remove Newsletter</button></div>`).join('')||'<p class="help">No newsletters yet.</p>'}`;
+  const buildNewsletter=(status)=>({id:uid('nl'),subject:BWC.sanitize(document.getElementById('newsletterSubject').value,180),body:BWC.sanitize(document.getElementById('newsletterBody').value,4000),attachmentName:'',attachmentUrl:BWC.sanitize(document.getElementById('newsletterAttachmentUrl').value,500),status,sendAt:document.getElementById('newsletterSendAt').value,sentAt:status==='Published'?new Date().toISOString():'',expiresAt:document.getElementById('newsletterExpiresAt').value,recipientCount:status==='Published'?recipients.length:0,createdAt:new Date().toISOString()});
+  document.getElementById('saveNewsletterDraft').onclick=async()=>{
+    const newsletter=buildNewsletter('Draft');
+    if(!newsletter.subject||!newsletter.body) return alert('Add a subject and body.');
+    newsletters.unshift(newsletter);
+    await saveAdminChange('admin.newsletter.draft',newsletter.subject,drawNewsletters);
+  };
+  document.getElementById('sendNewsletterNow').onclick=async()=>{
+    const newsletter=buildNewsletter('Published');
+    if(!newsletter.subject||!newsletter.body) return alert('Add a subject and body.');
+    newsletters.unshift(newsletter);
+    recipients.forEach(r=>workingData.portal.notifications.unshift({id:uid('ntf'),type:'newsletter',residentId:r.id,email:r.email,subject:newsletter.subject,message:'Newsletter queued for email delivery.',status:'queued',createdAt:new Date().toISOString()}));
+    await saveAdminChange('admin.newsletter.sent',`${newsletter.subject}: ${recipients.length} recipients`,drawNewsletters);
+  };
+  box.querySelectorAll('[data-remove-newsletter]').forEach(btn=>btn.onclick=async()=>{
+    const index=newsletters.findIndex(n=>n.id===btn.dataset.removeNewsletter);
+    const newsletter=newsletters[index];
+    if(index<0||!await confirmDanger('Remove newsletter',`Remove "${newsletter.subject||'this newsletter'}" from the archive?`,'Remove Newsletter')) return;
+    newsletters.splice(index,1);
+    await saveAdminChange('admin.newsletter.removed',newsletter.subject||newsletter.id,drawNewsletters);
+  });
+}
+
+function drawPolls(){
+  const box=document.getElementById('pollsEditor');
+  if(!box) return;
+  const polls=workingData.portal.polls||[];
+  const responses=workingData.portal.pollResponses||[];
+  box.innerHTML=`<div class='doc-admin-form'><input id='pollQuestion' placeholder='Poll or survey question'><select id='pollAnswerType'><option value='single'>Single choice</option><option value='multiple'>Multiple choice</option><option value='free-text'>Free text survey</option></select><textarea id='pollOptions' placeholder='Options, one per line. Leave blank for free-text surveys.'></textarea><div class='grid two'><input id='pollStartDate' type='date'><input id='pollEndDate' type='date'></div><label class='inline-check'><input id='pollAnonymous' type='checkbox'> Store responses anonymously</label><label class='inline-check'><input id='pollShowResults' type='checkbox' checked> Show results to residents</label><button id='addPoll'>Create Poll / Survey</button></div>${polls.map(poll=>`<div class='item'><strong>${escapeHtml(poll.question)}</strong><br><small>${escapeHtml(poll.answerType||'single')} - ${escapeHtml(poll.startDate||'')} to ${escapeHtml(poll.endDate||'')} - ${responses.filter(r=>r.pollId===poll.id).length} responses</small><div class='grid two'><select data-poll-status='${escapeHtml(poll.id)}'><option ${poll.status==='Open'?'selected':''}>Open</option><option ${poll.status==='Closed'?'selected':''}>Closed</option><option ${poll.status==='Archived'?'selected':''}>Archived</option></select><button data-save-poll-status='${escapeHtml(poll.id)}'>Save Status</button></div><button class='secondary danger' data-remove-poll='${escapeHtml(poll.id)}'>Remove Poll</button></div>`).join('')||'<p class="help">No polls have been created yet.</p>'}`;
+  document.getElementById('addPoll').onclick=async()=>{
+    const question=BWC.sanitize(document.getElementById('pollQuestion').value,220);
+    const answerType=document.getElementById('pollAnswerType').value;
+    const options=document.getElementById('pollOptions').value.split('\n').map(option=>BWC.sanitize(option,120)).filter(Boolean);
+    if(!question) return alert('Add a poll question.');
+    if(answerType!=='free-text'&&options.length<2) return alert('Add at least two answer options.');
+    polls.unshift({id:uid('poll'),question,answerType,options,startDate:document.getElementById('pollStartDate').value,endDate:document.getElementById('pollEndDate').value,anonymous:document.getElementById('pollAnonymous').checked,showResults:document.getElementById('pollShowResults').checked,status:'Open',createdAt:new Date().toISOString()});
+    await saveAdminChange('admin.poll.created',question,drawPolls);
+  };
+  box.querySelectorAll('[data-save-poll-status]').forEach(btn=>btn.onclick=async()=>{
+    const poll=polls.find(p=>p.id===btn.dataset.savePollStatus);
+    if(!poll) return;
+    poll.status=box.querySelector(`[data-poll-status="${poll.id}"]`).value;
+    await saveAdminChange('admin.poll.status',`${poll.question}: ${poll.status}`,drawPolls);
+  });
+  box.querySelectorAll('[data-remove-poll]').forEach(btn=>btn.onclick=async()=>{
+    const index=polls.findIndex(p=>p.id===btn.dataset.removePoll);
+    const poll=polls[index];
+    if(index<0||!await confirmDanger('Remove poll',`Remove "${poll.question}" and its responses?`,'Remove Poll')) return;
+    polls.splice(index,1);
+    workingData.portal.pollResponses=(workingData.portal.pollResponses||[]).filter(response=>response.pollId!==poll.id);
+    await saveAdminChange('admin.poll.removed',poll.question,drawPolls);
+  });
+}
+
+function drawBulletins(){
+  const box=document.getElementById('bulletinsEditor');
+  if(!box) return;
+  const bulletins=workingData.portal.bulletins||[];
+  const categories=['Announcements','Reminders','Lost & Found','For Sale','Social'];
+  const categoryOptions=categories.map(category=>`<option>${escapeHtml(category)}</option>`).join('');
+  box.innerHTML=`<div class='doc-admin-form'><input id='bulletinTitle' placeholder='Bulletin title'><select id='bulletinCategory'>${categoryOptions}</select><textarea id='bulletinBody' placeholder='Bulletin body'></textarea><div class='grid two'><input id='bulletinStartDate' type='date'><input id='bulletinExpiresAt' type='date'></div><input id='bulletinAttachmentUrl' placeholder='Optional attachment URL'><button id='addBulletin'>Publish Bulletin</button></div>${bulletins.map(b=>`<div class='item'><div class='request-admin-head'><strong>${escapeHtml(b.title)}</strong><span>${escapeHtml(b.category||'Announcements')}</span><b>${escapeHtml(b.status||'Published')}</b></div><small>${escapeHtml(b.startDate||'')} to ${escapeHtml(b.expiresAt||'No expiry')} - ${escapeHtml(b.authorName||'Admin')}</small><p>${escapeHtml(b.body||'')}</p><button data-publish-bulletin='${escapeHtml(b.id)}'>Publish</button><button class='secondary' data-reject-bulletin='${escapeHtml(b.id)}'>Reject</button><button class='secondary danger' data-remove-bulletin='${escapeHtml(b.id)}'>Remove</button></div>`).join('')||'<p class="help">No bulletin board posts yet.</p>'}`;
+  document.getElementById('addBulletin').onclick=async()=>{
+    const title=BWC.sanitize(document.getElementById('bulletinTitle').value,140);
+    const body=BWC.sanitize(document.getElementById('bulletinBody').value,1600);
+    if(!title||!body) return alert('Add a title and body.');
+    const bulletin={id:uid('blt'),title,category:document.getElementById('bulletinCategory').value,body,authorId:adminActor,authorName:'HOA Board',status:'Published',startDate:document.getElementById('bulletinStartDate').value||new Date().toISOString().slice(0,10),expiresAt:document.getElementById('bulletinExpiresAt').value,attachmentName:'',attachmentUrl:BWC.sanitize(document.getElementById('bulletinAttachmentUrl').value,500),createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()};
+    bulletins.unshift(bulletin);
+    (workingData.portal.residents||[]).filter(r=>r.status==='active'&&r.email&&r.notificationPreferences?.bulletins!==false).forEach(r=>workingData.portal.notifications.unshift({id:uid('ntf'),type:'bulletin',residentId:r.id,email:r.email,subject:bulletin.title,message:'New bulletin board post queued for notification.',status:'queued',createdAt:new Date().toISOString()}));
+    await saveAdminChange('admin.bulletin.published',title,drawBulletins);
+  };
+  box.querySelectorAll('[data-publish-bulletin]').forEach(btn=>btn.onclick=async()=>{const bulletin=bulletins.find(b=>b.id===btn.dataset.publishBulletin); if(!bulletin) return; bulletin.status='Published'; bulletin.updatedAt=new Date().toISOString(); await saveAdminChange('admin.bulletin.approved',bulletin.title,drawBulletins); drawDashboardCounts();});
+  box.querySelectorAll('[data-reject-bulletin]').forEach(btn=>btn.onclick=async()=>{const bulletin=bulletins.find(b=>b.id===btn.dataset.rejectBulletin); if(!bulletin) return; bulletin.status='Rejected'; bulletin.updatedAt=new Date().toISOString(); await saveAdminChange('admin.bulletin.rejected',bulletin.title,drawBulletins); drawDashboardCounts();});
+  box.querySelectorAll('[data-remove-bulletin]').forEach(btn=>btn.onclick=async()=>{const index=bulletins.findIndex(b=>b.id===btn.dataset.removeBulletin); const bulletin=bulletins[index]; if(index<0||!await confirmDanger('Remove bulletin',`Remove "${bulletin.title}"?`,'Remove Bulletin')) return; bulletins.splice(index,1); await saveAdminChange('admin.bulletin.removed',bulletin.title,drawBulletins); drawDashboardCounts();});
 }
 
 function drawResidentApprovals(){

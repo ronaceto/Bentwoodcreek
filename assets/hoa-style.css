@@ -54,6 +54,27 @@ h3,h4{margin:.6rem 0}
 .portal-nav{display:flex;flex-wrap:wrap;gap:.5rem;margin:1rem 0}
 .portal-nav a{display:inline-flex;align-items:center;justify-content:center;min-height:38px;padding:0 .85rem;background:#fff;border:1px solid #d1d5db;border-radius:6px;color:#1b1f24;text-decoration:none;font-weight:700}
 .portal-nav a:hover{border-color:#9b4d15;color:#9b4d15}
+.portal-side-nav{position:sticky;top:126px;z-index:5;background:#f6f7f9;padding:.5rem 0}
+.portal-section{scroll-margin-top:150px}
+.communication-toolbar{display:grid;gap:.75rem;margin:.75rem 0}
+@media(min-width:760px){.communication-toolbar{grid-template-columns:1fr 220px;align-items:center}}
+.comm-form{border:1px solid #e5e7eb;border-radius:8px;background:#fcfcfd;padding:.85rem;margin:1rem 0}
+.comm-list{display:grid;gap:.8rem}
+.comm-item{border:1px solid #e5e7eb;border-radius:8px;background:#fcfcfd;padding:.85rem}
+.comm-item-head{display:flex;flex-wrap:wrap;gap:.5rem;align-items:center;justify-content:space-between}
+.comm-item-head span,.comm-item-head small{border-radius:999px;background:#e5e7eb;color:#374151;padding:.15rem .55rem;font-size:.82rem}
+.thread-posts{display:grid;gap:.5rem;margin:.75rem 0}
+.forum-post{border:1px solid #e5e7eb;border-radius:8px;background:#fff;padding:.65rem}
+.forum-post.nested{margin-left:1rem;border-left:4px solid #d97706}
+.forum-post.reported{border-color:#a94442;background:#fff8f8}
+.forum-post p,.comm-item p{line-height:1.45}
+.forum-reply-box{border-top:1px solid #e5e7eb;margin-top:.75rem;padding-top:.75rem}
+.poll-results{display:grid;gap:.45rem;margin-top:.75rem}
+.poll-bar{display:grid;grid-template-columns:130px 1fr 36px;gap:.5rem;align-items:center}
+.poll-bar b{display:block;height:12px;min-width:2px;border-radius:999px;background:#2f5d50}
+.poll-bar small{text-align:right}
+details{border:1px solid #e5e7eb;border-radius:8px;padding:.75rem;background:#fcfcfd;margin:.75rem 0}
+summary{cursor:pointer;font-weight:700}
 .doc-library{display:grid;gap:1rem}
 @media(min-width:900px){.doc-library{grid-template-columns:repeat(2,minmax(0,1fr))}}
 .doc-category{border:1px solid #e5e7eb;border-radius:8px;background:#fcfcfd;padding:.9rem}

@@ -1187,6 +1187,36 @@
       }
     ],
     "rsvps": [],
+    "forumCategories": [
+      {
+        "id": "general",
+        "name": "General Discussion",
+        "description": "General resident discussion and questions."
+      },
+      {
+        "id": "projects",
+        "name": "Projects",
+        "description": "Neighborhood project ideas and updates."
+      },
+      {
+        "id": "maintenance",
+        "name": "Maintenance",
+        "description": "Common area maintenance topics."
+      },
+      {
+        "id": "social",
+        "name": "Social Events",
+        "description": "Community gatherings and volunteer opportunities."
+      }
+    ],
+    "forumThreads": [],
+    "forumPosts": [],
+    "forumSubscriptions": [],
+    "newsletters": [],
+    "polls": [],
+    "pollResponses": [],
+    "bulletins": [],
+    "notifications": [],
     "auditLogs": []
   }
 }
