@@ -89,7 +89,7 @@ function renderPortalNav(){
     ['bulletins','Bulletin Board'],
     ['directory','Resident Directory']
   ];
-  return `<nav class='portal-nav portal-side-nav' aria-label='Resident portal sections'>${items.map(([id,label])=>`<a href='#${id}'>${label}</a>`).join('')}</nav>`;
+  return `<nav class='portal-nav portal-side-nav' aria-label='Resident portal sections'>${items.map(([id,label],index)=>`<button type='button' class='portal-tab ${index===0?'active':''}' data-tab-target='${id}' aria-controls='${id}' aria-selected='${index===0?'true':'false'}'>${label}</button>`).join('')}</nav>`;
 }
 function renderForums(data,resident){
   const categories=data.portal.forumCategories||[];
@@ -112,31 +112,28 @@ function renderForums(data,resident){
   const categoryFilterOptions=`<option value='all'>All Categories</option>${categoryOptions}`;
   const prefs=resident.forumCategorySubscriptions||{};
   const subscriptionControls=categories.map(category=>`<label class='inline-check'><input type='checkbox' data-forum-category-sub='${escapeHtml(category.id)}' ${prefs[category.id]!==false?'checked':''}> Notify me about ${escapeHtml(category.name)}</label>`).join('');
-  return card('Discussion Forums',`
-    <section id='forums' class='portal-section'>
+  return `<section id='forums' class='portal-tab-panel portal-section' style='display:none'>${card('Discussion Forums',`
       <div class='communication-toolbar'><input id='forumSearch' type='search' placeholder='Search forums by keyword, author, category, or date'><select id='forumFilter'>${categoryFilterOptions}</select></div>
       <details><summary>Forum notification preferences</summary>${subscriptionControls}</details>
       <div id='forumMsg' class='form-message' role='status'></div>
       <div class='comm-form'><h3>Create Thread</h3><input id='forumTitle' placeholder='Thread title'><textarea id='forumBody' placeholder='Start a discussion. Basic links, line breaks, quoting, and @mentions are supported.'></textarea><input id='forumAttachment' type='file'><button id='createThread'>Create Thread</button></div>
       <div class='comm-list'>${threadList}</div>
-    </section>`);
+    `)}</section>`;
 }
 function renderNewsletters(data,currentResident){
   const newsletters=(data.portal.newsletters||[]).filter(n=>String(n.status||'Published')!=='Draft').sort((a,b)=>String(b.sentAt||b.createdAt||'').localeCompare(String(a.sentAt||a.createdAt||'')));
   const prefs=currentResident.notificationPreferences||{};
-  return card('Newsletters Archive',`
-    <section id='newsletters' class='portal-section'>
+  return `<section id='newsletters' class='portal-tab-panel portal-section' style='display:none'>${card('Newsletters Archive',`
       <div id='prefMsg' class='form-message' role='status'></div>
       <label class='inline-check'><input id='newsletterOptIn' type='checkbox' ${prefs.newsletters!==false?'checked':''}> Email me newsletters and community updates</label>
       <label class='inline-check'><input id='bulletinOptIn' type='checkbox' ${prefs.bulletins!==false?'checked':''}> Notify me about bulletin board posts</label>
       <div class='comm-list'>${newsletters.map(n=>`<article class='comm-item'><div class='comm-item-head'><strong>${escapeHtml(n.subject||'Newsletter')}</strong><small>${escapeHtml((n.sentAt||n.createdAt||'').slice(0,10))}</small></div><p>${linkifyText(n.body||'')}</p>${n.attachmentUrl?`<a href='${escapeHtml(n.attachmentUrl)}' target='_blank' rel='noopener noreferrer'>${escapeHtml(n.attachmentName||'Attachment')}</a>`:''}</article>`).join('')||'<p class="help">No newsletters have been published yet.</p>'}</div>
-    </section>`);
+    `)}</section>`;
 }
 function renderPolls(data,resident){
   const polls=(data.portal.polls||[]).filter(p=>String(p.status||'Open')!=='Archived').sort((a,b)=>String(b.createdAt||'').localeCompare(String(a.createdAt||'')));
   const responses=data.portal.pollResponses||[];
-  return card('Polls & Surveys',`
-    <section id='polls' class='portal-section'>
+  return `<section id='polls' class='portal-tab-panel portal-section' style='display:none'>${card('Polls & Surveys',`
       <div id='pollMsg' class='form-message' role='status'></div>
       <div class='comm-list'>${polls.map(poll=>{
         const myResponse=responses.find(r=>r.pollId===poll.id&&r.residentId===resident.id);
@@ -153,18 +150,36 @@ function renderPolls(data,resident){
           : options.map(option=>`<label class='inline-check'><input name='poll-${escapeHtml(poll.id)}' value='${escapeHtml(option)}' type='${poll.answerType==='multiple'?'checkbox':'radio'}'> ${escapeHtml(option)}</label>`).join('');
         return `<article class='comm-item'><div class='comm-item-head'><strong>${escapeHtml(poll.question)}</strong><span>${escapeHtml(poll.answerType||'single')}</span><small>${escapeHtml(poll.startDate||'')} to ${escapeHtml(poll.endDate||'')}</small></div>${myResponse?'<p class="help">Your response has been recorded.</p>':closed?'<p class="help">This poll is closed.</p>':`${input}<button data-submit-poll='${escapeHtml(poll.id)}'>Submit Response</button>`}${poll.showResults||closed?`<div class='poll-results'>${results||'<p class="help">No responses yet.</p>'}</div>`:''}</article>`;
       }).join('')||'<p class="help">No polls or surveys are open right now.</p>'}</div>
-    </section>`);
+    `)}</section>`;
 }
 function renderBulletins(data,resident){
   const bulletins=(data.portal.bulletins||[]).filter(b=>String(b.status||'Published')==='Published'&&isActiveWindow(b)).sort((a,b)=>String(b.createdAt||'').localeCompare(String(a.createdAt||'')));
   const categories=[...new Set(['All','Announcements','Reminders','Lost & Found','For Sale','Social',...bulletins.map(b=>b.category||'Announcements')])];
-  return card('Digital Bulletin Board',`
-    <section id='bulletins' class='portal-section'>
+  return `<section id='bulletins' class='portal-tab-panel portal-section' style='display:none'>${card('Digital Bulletin Board',`
       <div class='communication-toolbar'><input id='bulletinSearch' type='search' placeholder='Search bulletin board'><select id='bulletinFilter'>${categories.map(c=>`<option>${escapeHtml(c)}</option>`).join('')}</select></div>
       <div id='bulletinMsg' class='form-message' role='status'></div>
       <details><summary>Submit a community bulletin for review</summary><div class='comm-form'><input id='residentBulletinTitle' placeholder='Title'><select id='residentBulletinCategory'><option>Lost & Found</option><option>For Sale</option><option>Social</option><option>Reminders</option></select><textarea id='residentBulletinBody' placeholder='Post details'></textarea><button id='submitResidentBulletin'>Submit for Moderation</button></div></details>
       <div class='comm-list'>${bulletins.map(b=>`<article class='comm-item' data-bulletin-row data-category='${escapeHtml(b.category||'Announcements')}' data-keywords='${escapeHtml(`${b.title} ${b.body} ${b.category} ${b.authorName}`.toLowerCase())}'><div class='comm-item-head'><strong>${escapeHtml(b.title)}</strong><span>${escapeHtml(b.category||'Announcements')}</span><small>${escapeHtml((b.startDate||b.createdAt||'').slice(0,10))}</small></div><p>${linkifyText(b.body||'')}</p>${b.attachmentUrl?`<a href='${escapeHtml(b.attachmentUrl)}' target='_blank' rel='noopener noreferrer'>${escapeHtml(b.attachmentName||'Attachment')}</a>`:''}</article>`).join('')||'<p class="help">No bulletin board posts are active right now.</p>'}</div>
-    </section>`);
+    `)}</section>`;
+}
+function wirePortalTabs(defaultTab='announcements'){
+  const tabs=[...document.querySelectorAll('[data-tab-target]')];
+  const panels=[...document.querySelectorAll('.portal-tab-panel')];
+  const available=new Set(panels.map(panel=>panel.id));
+  const hashTarget=location.hash.replace('#','');
+  let active=available.has(hashTarget)?hashTarget:defaultTab;
+  if(!available.has(active)&&panels[0]) active=panels[0].id;
+  const show=(id,updateHash=true)=>{
+    panels.forEach(panel=>{panel.style.display=panel.id===id?'block':'none';});
+    tabs.forEach(tab=>{
+      const selected=tab.dataset.tabTarget===id;
+      tab.classList.toggle('active',selected);
+      tab.setAttribute('aria-selected',selected?'true':'false');
+    });
+    if(updateHash&&location.hash!==`#${id}`) history.replaceState(null,'',`#${id}`);
+  };
+  tabs.forEach(tab=>tab.onclick=()=>show(tab.dataset.tabTarget));
+  show(active,false);
 }
 
 async function authView(){
@@ -236,11 +251,11 @@ async function render(){
   $('portal').innerHTML=
     card('Welcome',`<p><strong>${resident.name}</strong> (${resident.role})</p><button id='logout' class='secondary'>Logout</button>`)+
     renderPortalNav()+
-    `<div id='announcements' class='grid two'>${card('Announcements',`<ul>${announcements}</ul><p><a href='#newsletters'>Open newsletter archive</a></p>`)}${card('Events & RSVPs',`<section id='events'><ul>${events}</ul></section>`)}</div>`+
-    `${card('Neighborhood Projects',`<div class='request-list'>${projects}</div>`)}`+
-    `${card('Document Library',`<section id='documents'><div class='doc-library'>${docs}</div></section>`)}`
-    +`<div class='grid two'>${card('Requests',`<section id='requests'><div class='request-list'>${myReq}</div><h3>Submit Request</h3><div id='requestMsg' class='form-message' role='status'></div><select id='reqType'><option>Architectural Change</option><option>Maintenance</option><option>General Question</option></select><textarea id='reqText' placeholder='Describe the request, project scope, materials, colors, timing, or issue.'></textarea><input id='reqFileLink' placeholder='Optional link to plans, photos, or documents'><label class='buttonlike secondary'>Upload File<input id='reqUpload' type='file' hidden></label><div id='reqAttachmentName' class='map-summary'></div><button id='submitReq'>Submit Request</button></section>`)}`+
-    `${card('Resident Directory',`<section id='directory'><label class='inline-check'><input id='optin' type='checkbox' ${currentResident.directoryOptIn?'checked':''}> List my household in the directory</label><input id='dirPhone' value='${escapeHtml(currentResident.phone||'')}' placeholder='Directory phone number'><div id='dir'>${dir}</div><a class='buttonlike secondary' href='/directory/'>Open Directory & Edit Listing</a><button id='removeMyPortalAccount' class='secondary danger' type='button'>Remove My Resident Account</button></section>`)}</div>`+
+    `<section id='announcements' class='portal-tab-panel portal-section'>${card('Announcements',`<ul>${announcements}</ul><p><button type='button' class='buttonlike secondary inline-tab-link' data-tab-link='newsletters'>Open newsletter archive</button></p>`)}</section>`+
+    `<section id='events' class='portal-tab-panel portal-section' style='display:none'>${card('Events & RSVPs',`<ul>${events}</ul>`)}${card('Neighborhood Projects',`<div class='request-list'>${projects}</div>`)}</section>`+
+    `<section id='documents' class='portal-tab-panel portal-section' style='display:none'>${card('Document Library',`<div class='doc-library'>${docs}</div>`)}</section>`
+    +`<section id='requests' class='portal-tab-panel portal-section' style='display:none'>${card('Requests',`<div class='request-list'>${myReq}</div><h3>Submit Request</h3><div id='requestMsg' class='form-message' role='status'></div><select id='reqType'><option>Architectural Change</option><option>Maintenance</option><option>General Question</option></select><textarea id='reqText' placeholder='Describe the request, project scope, materials, colors, timing, or issue.'></textarea><input id='reqFileLink' placeholder='Optional link to plans, photos, or documents'><label class='buttonlike secondary'>Upload File<input id='reqUpload' type='file' hidden></label><div id='reqAttachmentName' class='map-summary'></div><button id='submitReq'>Submit Request</button>`)}</section>`+
+    `<section id='directory' class='portal-tab-panel portal-section' style='display:none'>${card('Resident Directory',`<label class='inline-check'><input id='optin' type='checkbox' ${currentResident.directoryOptIn?'checked':''}> List my household in the directory</label><input id='dirPhone' value='${escapeHtml(currentResident.phone||'')}' placeholder='Directory phone number'><div id='dir'>${dir}</div><a class='buttonlike secondary' href='/directory/'>Open Directory & Edit Listing</a><button id='removeMyPortalAccount' class='secondary danger' type='button'>Remove My Resident Account</button>`)}</section>`+
     renderForums(data,currentResident)+
     renderNewsletters(data,currentResident)+
     renderPolls(data,currentResident)+
@@ -251,6 +266,11 @@ async function render(){
     (resident.role==='admin'?card('Admin Workflow',`<h3>Resident Approvals</h3><p>Pending approvals: ${(data.portal.residents||[]).filter(r=>r.status==='pending').length}</p><div id='pending'></div><h3>Create announcement</h3><input id='annTitle' placeholder='Title'><button id='addAnn'>Post</button>`):'')+
     card('Audit Logs',`<ul>${logs}</ul>`);
 
+  wirePortalTabs();
+  document.querySelectorAll('[data-tab-link]').forEach(btn=>btn.onclick=()=>{
+    const target=document.querySelector(`[data-tab-target="${btn.dataset.tabLink}"]`);
+    if(target){target.click(); document.querySelector('.portal-side-nav')?.scrollIntoView({block:'start'});}
+  });
   $('logout').onclick=()=>{BWC.logout();location.reload();};
   $('removeMyPortalAccount').onclick=async()=>{if(!await BWC.confirmAction({title:'Remove resident account',message:'Remove your resident account and directory listing? You will need to register again for portal access.',confirmText:'Remove Account',danger:true})) return; await BWC.removeCurrentResident(); alert('Your resident account was removed.'); location.href='/resident-portal/';};
   if(BWC.renderNeighborhoodMap) await BWC.renderNeighborhoodMap();
@@ -267,9 +287,9 @@ async function render(){
     await savePortalModule('forum.category.subscription',`${input.dataset.forumCategorySub}: ${input.checked?'subscribed':'unsubscribed'}`);
   });
   const filterForums=()=>{const q=$('forumSearch').value.toLowerCase(); const category=$('forumFilter').value; document.querySelectorAll('[data-forum-thread-row]').forEach(row=>{const okCategory=category==='all'||row.dataset.category===category; const okSearch=row.dataset.keywords.includes(q); row.style.display=okCategory&&okSearch?'':'none';});};
-  $('forumSearch').oninput=filterForums;
-  $('forumFilter').onchange=filterForums;
-  $('createThread').onclick=async()=>{
+  if($('forumSearch')) $('forumSearch').oninput=filterForums;
+  if($('forumFilter')) $('forumFilter').onchange=filterForums;
+  if($('createThread')) $('createThread').onclick=async()=>{
     const title=BWC.sanitize($('forumTitle').value,140);
     const body=BWC.sanitize($('forumBody').value,2000);
     if(!title||!body) return setMessage('forumMsg','Add a title and message before creating a thread.','error');
@@ -308,8 +328,8 @@ async function render(){
     post.reportedAt=new Date().toISOString();
     await savePortalModule('forum.post.reported',post.id);
   });
-  $('newsletterOptIn').onchange=async()=>{currentResident.notificationPreferences=currentResident.notificationPreferences||{}; currentResident.notificationPreferences.newsletters=$('newsletterOptIn').checked; await savePortalModule('resident.newsletter.preference',String($('newsletterOptIn').checked));};
-  $('bulletinOptIn').onchange=async()=>{currentResident.notificationPreferences=currentResident.notificationPreferences||{}; currentResident.notificationPreferences.bulletins=$('bulletinOptIn').checked; await savePortalModule('resident.bulletin.preference',String($('bulletinOptIn').checked));};
+  if($('newsletterOptIn')) $('newsletterOptIn').onchange=async()=>{currentResident.notificationPreferences=currentResident.notificationPreferences||{}; currentResident.notificationPreferences.newsletters=$('newsletterOptIn').checked; await savePortalModule('resident.newsletter.preference',String($('newsletterOptIn').checked));};
+  if($('bulletinOptIn')) $('bulletinOptIn').onchange=async()=>{currentResident.notificationPreferences=currentResident.notificationPreferences||{}; currentResident.notificationPreferences.bulletins=$('bulletinOptIn').checked; await savePortalModule('resident.bulletin.preference',String($('bulletinOptIn').checked));};
   document.querySelectorAll('[data-submit-poll]').forEach(btn=>btn.onclick=async()=>{
     const poll=data.portal.polls.find(p=>p.id===btn.dataset.submitPoll);
     if(!poll||data.portal.pollResponses.some(r=>r.pollId===poll.id&&r.residentId===resident.id)) return;
@@ -325,9 +345,9 @@ async function render(){
     await savePortalModule('poll.response.created',poll.question||poll.id);
   });
   const filterBulletins=()=>{const q=$('bulletinSearch').value.toLowerCase(); const category=$('bulletinFilter').value; document.querySelectorAll('[data-bulletin-row]').forEach(row=>{const okCategory=category==='All'||row.dataset.category===category; const okSearch=row.dataset.keywords.includes(q); row.style.display=okCategory&&okSearch?'':'none';});};
-  $('bulletinSearch').oninput=filterBulletins;
-  $('bulletinFilter').onchange=filterBulletins;
-  $('submitResidentBulletin').onclick=async()=>{
+  if($('bulletinSearch')) $('bulletinSearch').oninput=filterBulletins;
+  if($('bulletinFilter')) $('bulletinFilter').onchange=filterBulletins;
+  if($('submitResidentBulletin')) $('submitResidentBulletin').onclick=async()=>{
     const title=BWC.sanitize($('residentBulletinTitle').value,140);
     const body=BWC.sanitize($('residentBulletinBody').value,1600);
     if(!title||!body) return setMessage('bulletinMsg','Add a title and post details.','error');
