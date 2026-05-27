@@ -43,6 +43,9 @@ const $=id=>document.getElementById(id);
 const card=(t,b)=>`<article class='card'><h2>${t}</h2>${b}</article>`;
 const escapeHtml=(value)=>String(value||'').replace(/[&<>"']/g,(char)=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
 const setMessage=(id,text,type='error')=>{const el=$(id); if(!el) return; el.textContent=text||''; el.className=`form-message ${type} ${text?'show':''}`;};
+let portalFlash=null;
+function flashPortal(text,type='success'){portalFlash={text,type};}
+function showPortalFlash(){if(!portalFlash) return; setMessage('portalToast',portalFlash.text,portalFlash.type||'success'); portalFlash=null;}
 const linkifyText=(value)=>escapeHtml(value).replace(/\n/g,'<br>').replace(/(https?:\/\/[^\s<]+)/g,"<a href='$1' target='_blank' rel='noopener noreferrer'>$1</a>");
 const todayIso=()=>new Date().toISOString().slice(0,10);
 const isActiveWindow=(item)=>String(item.status||'Published')!=='Expired'&&(!item.startDate||item.startDate<=todayIso())&&(!item.expiresAt||item.expiresAt>=todayIso())&&(!item.endDate||item.endDate>=todayIso());
@@ -147,7 +150,7 @@ function renderPolls(data,resident){
         }).join('');
         const input=poll.answerType==='free-text'
           ? `<textarea data-poll-free='${escapeHtml(poll.id)}' placeholder='Share your response'></textarea>`
-          : options.map(option=>`<label class='inline-check'><input name='poll-${escapeHtml(poll.id)}' value='${escapeHtml(option)}' type='${poll.answerType==='multiple'?'checkbox':'radio'}'> ${escapeHtml(option)}</label>`).join('');
+          : `<div class='poll-options'>${options.map(option=>`<label class='poll-option'><input name='poll-${escapeHtml(poll.id)}' value='${escapeHtml(option)}' type='${poll.answerType==='multiple'?'checkbox':'radio'}'><span>${escapeHtml(option)}</span></label>`).join('')}</div>`;
         return `<article class='comm-item'><div class='comm-item-head'><strong>${escapeHtml(poll.question)}</strong><span>${escapeHtml(poll.answerType||'single')}</span><small>${escapeHtml(poll.startDate||'')} to ${escapeHtml(poll.endDate||'')}</small></div>${myResponse?'<p class="help">Your response has been recorded.</p>':closed?'<p class="help">This poll is closed.</p>':`${input}<button data-submit-poll='${escapeHtml(poll.id)}'>Submit Response</button>`}${poll.showResults||closed?`<div class='poll-results'>${results||'<p class="help">No responses yet.</p>'}</div>`:''}</article>`;
       }).join('')||'<p class="help">No polls or surveys are open right now.</p>'}</div>
     `)}</section>`;
@@ -215,7 +218,11 @@ async function render(){
 
   const data=await BWC.getData(); BWC.ensurePortal(data); BWC.normalizeResidents(data);
   const currentResident=data.portal.residents.find(r=>r.id===resident.id)||resident;
-  const announcements=data.portal.announcements.map(a=>`<li><strong>${a.title}</strong> <small>${a.date}</small></li>`).join('')||'<li>None</li>';
+  const adminAnnouncements=(data.portal.newsletters||[])
+    .filter(item=>String(item.status||'Draft')==='Published')
+    .sort((a,b)=>String(b.sentAt||b.sendAt||b.createdAt||'').localeCompare(String(a.sentAt||a.sendAt||a.createdAt||'')));
+  const announcementItems=adminAnnouncements;
+  const announcements=announcementItems.map(a=>`<li><strong>${escapeHtml(a.subject||a.title||'Announcement')}</strong> <small>${escapeHtml((a.sentAt||a.sendAt||a.createdAt||a.date||'').slice(0,10))}</small>${a.body?`<p>${linkifyText(a.body)}</p>`:''}</li>`).join('')||'<li>No announcements have been posted yet.</li>';
   const events=data.events.map(e=>`<li><strong>${e.title}</strong> ${e.datetime}<br><button data-rsvp='${e.id}'>RSVP Yes</button></li>`).join('')||'<li>None</li>';
   const projectOrder={'In Progress':1,'Planned':2,'Complete':3};
   const projects=[...(data.projects||[])].sort((a,b)=>(projectOrder[a.status]||9)-(projectOrder[b.status]||9)).map(p=>`
@@ -253,6 +260,7 @@ async function render(){
   const logs=(data.portal.auditLogs||[]).slice(0,12).map(l=>`<li>${l.timestamp}: ${l.action} (${l.details||''})</li>`).join('')||'<li>No logs</li>';
 
   $('portal').innerHTML=
+    `<div id='portalToast' class='form-message' role='status'></div>`+
     card('Welcome',`<p><strong>${resident.name}</strong> (${resident.role})</p><button id='logout' class='secondary'>Logout</button>`)+
     renderPortalNav()+
     `<section id='announcements' class='portal-tab-panel portal-section'>${card('Announcements',`<ul>${announcements}</ul><p><button type='button' class='buttonlike secondary inline-tab-link' data-tab-link='newsletters'>Open newsletter archive</button></p>`)}</section>`+
@@ -268,6 +276,7 @@ async function render(){
     (resident.role==='admin'?card('Admin Workflow',`<h3>Resident Approvals</h3><p>Pending approvals: ${(data.portal.residents||[]).filter(r=>r.status==='pending').length}</p><div id='pending'></div><h3>Create announcement</h3><input id='annTitle' placeholder='Title'><button id='addAnn'>Post</button>`):'');
 
   wirePortalTabs();
+  showPortalFlash();
   let portalMapRendered=false;
   const renderPortalMapOnce=async()=>{
     if(portalMapRendered||!BWC.renderNeighborhoodMap) return;
@@ -284,10 +293,10 @@ async function render(){
   $('removeMyPortalAccount').onclick=async()=>{if(!await BWC.confirmAction({title:'Remove resident account',message:'Remove your resident account and directory listing? You will need to register again for portal access.',confirmText:'Remove Account',danger:true})) return; await BWC.removeCurrentResident(); alert('Your resident account was removed.'); location.href='/resident-portal/';};
   document.querySelectorAll('[data-rsvp]').forEach(b=>b.onclick=()=>{data.portal.rsvps.push({id:BWC.uid('rsvp'),eventId:b.dataset.rsvp,residentId:resident.id,response:'yes',createdAt:new Date().toISOString()}); BWC.logAction(data,resident.id,'event.rsvp',b.dataset.rsvp); BWC.saveData(data); render();});
   $('reqUpload').onchange=async()=>{const file=$('reqUpload').files&&$('reqUpload').files[0]; if(!file) return; requestAttachment=await new Promise(resolve=>{const reader=new FileReader(); reader.onload=()=>resolve({name:file.name,url:reader.result,size:file.size,type:file.type}); reader.readAsDataURL(file);}); $('reqAttachmentName').textContent=`Attached: ${requestAttachment.name}`;};
-  $('submitReq').onclick=async()=>{const description=BWC.sanitize($('reqText').value,600); if(!description) return setMessage('requestMsg','Enter request details before submitting.','error'); const type=$('reqType').value; const fileLink=BWC.sanitize($('reqFileLink').value,300); setMessage('requestMsg','Submitting request...','info'); data.portal.requests.push({id:BWC.uid('req'),caseNumber:`${type==='Architectural Change'?'ARC':'REQ'}-${Date.now()}`,residentId:resident.id,residentName:currentResident.name,residentEmail:currentResident.email,lot:currentResident.lot||'',parcel:currentResident.parcel||'',address:currentResident.address||'',type,status:'Submitted',description,fileLink,attachmentName:requestAttachment?.name||'',attachmentUrl:requestAttachment?.url||'',createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()}); requestAttachment=null; BWC.logAction(data,resident.id,'request.submitted',type); await BWC.saveData(data); setMessage('requestMsg','Request submitted.','success'); render();};
-  $('saveDirectoryListing').onclick=async()=>{currentResident.directoryOptIn=$('optin').checked; currentResident.name=BWC.sanitize($('dirName').value,120); currentResident.phone=BWC.sanitize($('dirPhone').value,40); currentResident.email=BWC.sanitize($('dirEmail').value,120).toLowerCase(); BWC.normalizeHouseholdContacts(currentResident); BWC.logAction(data,resident.id,'directory.profile.updated','Directory listing saved'); await BWC.saveData(data); render();};
+  $('submitReq').onclick=async()=>{const btn=$('submitReq'); const description=BWC.sanitize($('reqText').value,600); if(!description) return setMessage('requestMsg','Enter request details before submitting.','error'); btn.disabled=true; btn.textContent='Submitting...'; const type=$('reqType').value; const fileLink=BWC.sanitize($('reqFileLink').value,300); setMessage('requestMsg','Submitting request...','info'); data.portal.requests.push({id:BWC.uid('req'),caseNumber:`${type==='Architectural Change'?'ARC':'REQ'}-${Date.now()}`,residentId:resident.id,residentName:currentResident.name,residentEmail:currentResident.email,lot:currentResident.lot||'',parcel:currentResident.parcel||'',address:currentResident.address||'',type,status:'Submitted',description,fileLink,attachmentName:requestAttachment?.name||'',attachmentUrl:requestAttachment?.url||'',createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()}); requestAttachment=null; BWC.logAction(data,resident.id,'request.submitted',type); await BWC.saveData(data); flashPortal('Request submitted.','success'); render();};
+  $('saveDirectoryListing').onclick=async()=>{const btn=$('saveDirectoryListing'); btn.disabled=true; btn.textContent='Saving...'; currentResident.directoryOptIn=$('optin').checked; currentResident.name=BWC.sanitize($('dirName').value,120); currentResident.phone=BWC.sanitize($('dirPhone').value,40); currentResident.email=BWC.sanitize($('dirEmail').value,120).toLowerCase(); BWC.normalizeHouseholdContacts(currentResident); BWC.logAction(data,resident.id,'directory.profile.updated','Directory listing saved'); await BWC.saveData(data); flashPortal('Directory listing saved.','success'); render();};
 
-  const savePortalModule=async(action,details)=>{BWC.logAction(data,resident.id,action,details||''); await BWC.saveData(data); await render();};
+  const savePortalModule=async(action,details,message='Changes saved.')=>{BWC.logAction(data,resident.id,action,details||''); await BWC.saveData(data); flashPortal(message,'success'); await render();};
   document.querySelectorAll('[data-forum-category-sub]').forEach(input=>input.onchange=async()=>{
     currentResident.forumCategorySubscriptions=currentResident.forumCategorySubscriptions||{};
     currentResident.forumCategorySubscriptions[input.dataset.forumCategorySub]=input.checked;
@@ -348,8 +357,10 @@ async function render(){
       answers=[...document.querySelectorAll(`[name="poll-${poll.id}"]:checked`)].map(input=>input.value);
       if(!answers.length) return setMessage('pollMsg','Choose an answer before submitting.','error');
     }
+    btn.disabled=true;
+    btn.textContent='Submitting...';
     data.portal.pollResponses.push({id:BWC.uid('pollresp'),pollId:poll.id,residentId:resident.id,residentName:poll.anonymous?'':residentDisplayName(currentResident),answers,freeText,anonymous:!!poll.anonymous,createdAt:new Date().toISOString()});
-    await savePortalModule('poll.response.created',poll.question||poll.id);
+    await savePortalModule('poll.response.created',poll.question||poll.id,'Poll response saved.');
   });
   const filterBulletins=()=>{const q=$('bulletinSearch').value.toLowerCase(); const category=$('bulletinFilter').value; document.querySelectorAll('[data-bulletin-row]').forEach(row=>{const okCategory=category==='All'||row.dataset.category===category; const okSearch=row.dataset.keywords.includes(q); row.style.display=okCategory&&okSearch?'':'none';});};
   if($('bulletinSearch')) $('bulletinSearch').oninput=filterBulletins;
