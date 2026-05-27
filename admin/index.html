@@ -141,6 +141,7 @@ async function render(){
         <div><h1>Bentwood Creek HOA Portal</h1><p>Admin workspace</p></div>
         <div class='admin-header-actions'><span class='admin-notice-bell' aria-label='Notifications'>!</span><span class='role-pill'>Admin User<br><small>Board Admin</small></span><button id='adminLogout' class='secondary' type='button'>Logout</button></div>
       </header>
+      <div id='adminToast' class='form-message' role='status'></div>
       <section id='module-dashboard' class='admin-module'><div class='admin-section-head'><div><h2>Better Add/Edit Experience</h2><p class='help'>What needs attention today.</p></div></div><div class='admin-info-banner'>Each section saves independently. Each card or row has its own save action.</div><div id='dashboardCounts' class='dashboard-counts clickable-counts'></div><div class='admin-dashboard-grid'><div class='card'><h3>Quick Actions</h3><div class='quick-actions'><button data-jump='communications'>Add Announcement</button><button data-jump='events'>Add Event</button><button data-jump='documents'>Add Document</button><button data-jump='communications'>Publish Bulletin</button><button data-jump='communications'>Create Poll</button><button data-jump='residents'>Review Pending Resident</button></div></div><div class='card'><h3>Recent Activity</h3><div id='recentActivity'></div></div></div></section>
       <section id='module-residents' class='admin-module'><div class='admin-section-head'><div><h2>Residents</h2><p class='help'>Approve access, manage account status, and review household details.</p></div><input id='residentSearch' type='search' placeholder='Search name, address, email, or lot'></div><div id='residentApprovals'></div></section>
       <section id='module-directory' class='admin-module'><div class='admin-section-head'><div><h2>Directory</h2><p class='help'>Manage who appears in the resident directory.</p></div></div><div id='directoryManagement'></div></section>
@@ -197,114 +198,98 @@ function drawRecentActivity(){
   box.innerHTML=logs.length?`<ul class='activity-list'>${logs.map(log=>`<li><strong>${escapeHtml(log.action)}</strong><span>${escapeHtml(log.details||'')}</span><small>${escapeHtml((log.timestamp||'').slice(0,16).replace('T',' '))}</small></li>`).join('')}</ul>`:'<p class="help">No recent activity yet.</p>';
 }
 
+function previewText(text='',length=110){
+  const clean=String(text||'').replace(/\s+/g,' ').trim();
+  return clean.length>length?`${clean.slice(0,length-1)}...`:clean;
+}
+function openAdminDrawer(title,bodyHtml,options={}){
+  let drawer=document.getElementById('adminDrawer');
+  if(!drawer){
+    drawer=document.createElement('div');
+    drawer.id='adminDrawer';
+    drawer.className='admin-drawer-backdrop';
+    drawer.innerHTML="<aside class='admin-drawer' role='dialog' aria-modal='true' aria-labelledby='adminDrawerTitle'><header><h2 id='adminDrawerTitle'></h2><button id='adminDrawerClose' class='secondary' type='button'>Cancel</button></header><div id='adminDrawerBody'></div></aside>";
+    document.body.appendChild(drawer);
+  }
+  drawer.querySelector('#adminDrawerTitle').textContent=title;
+  drawer.querySelector('#adminDrawerBody').innerHTML=bodyHtml;
+  drawer.classList.add('open');
+  drawer.querySelector('#adminDrawerClose').onclick=closeAdminDrawer;
+  drawer.onclick=(event)=>{if(event.target===drawer) closeAdminDrawer();};
+  if(typeof options.afterOpen==='function') options.afterOpen(drawer);
+}
+function closeAdminDrawer(){
+  const drawer=document.getElementById('adminDrawer');
+  if(drawer) drawer.classList.remove('open');
+}
+function listActions(id,extra=''){
+  return `<div class='list-actions'><button class='secondary' data-view='${escapeHtml(id)}'>View</button><button data-edit='${escapeHtml(id)}'>Edit</button>${extra}<button class='link-danger' data-delete='${escapeHtml(id)}'>Delete</button></div>`;
+}
+
 function drawAbout(){
   const box=document.getElementById('aboutEditor');
-  box.innerHTML=`<div class='about-admin-grid'><section><div class='mini-section-head'><h4>Board Members</h4><button id='addBoard' type='button'>+ Add Board Member</button></div>${workingData.about.boardMembers.map((m,i)=>`<article class='admin-record-card'><div class='record-card-head'><strong>${escapeHtml(m.role||'Board Member')}</strong>${adminStatus()}</div><input data-k='role' data-i='${i}' data-g='board' value='${escapeHtml(m.role)}' placeholder='Role / title'><input data-k='name' data-i='${i}' data-g='board' value='${escapeHtml(m.name)}' placeholder='Name'><textarea data-k='description' data-i='${i}' data-g='board' placeholder='Short biography or responsibility'>${escapeHtml(m.description)}</textarea><div class='record-actions'><button data-save='board' data-i='${i}'>Save Member</button><button class='secondary' data-cancel-record>Cancel</button><button class='secondary danger' data-del='board' data-i='${i}'>Remove</button></div></article>`).join('')||'<p class="help">No board members yet.</p>'}</section><section><div class='mini-section-head'><h4>Committees</h4><button id='addCommittee' type='button'>+ Add Committee</button></div>${workingData.about.committees.map((c,i)=>`<article class='admin-record-card'><div class='record-card-head'><strong>${escapeHtml(c.name||'Committee')}</strong>${adminStatus()}</div><input data-k='name' data-i='${i}' data-g='committee' value='${escapeHtml(c.name)}' placeholder='Committee name'><textarea data-k='description' data-i='${i}' data-g='committee' placeholder='Description'>${escapeHtml(c.description)}</textarea><div class='record-actions'><button data-save='committee' data-i='${i}'>Save Committee</button><button class='secondary' data-cancel-record>Cancel</button><button class='secondary danger' data-del='committee' data-i='${i}'>Remove</button></div></article>`).join('')||'<p class="help">No committees yet.</p>'}</section></div>`;
-  box.querySelectorAll('[data-g]').forEach(el=>el.oninput=(e)=>{const {g,i,k}=e.target.dataset; const v=e.target.value; (g==='board'?workingData.about.boardMembers:workingData.about.committees)[+i][k]=v;});
-  markDirtyFromInputs(box);
-  box.querySelectorAll('[data-save]').forEach(el=>el.onclick=async()=>{const i=+el.dataset.i; const type=el.dataset.save; const row=type==='board'?workingData.about.boardMembers[i]:workingData.about.committees[i]; await saveFromButton(el,`admin.${type}.saved`,row?.name||row?.role||type,drawAbout);});
-  box.querySelectorAll('[data-cancel-record]').forEach(el=>el.onclick=()=>render());
-  box.querySelectorAll('[data-del]').forEach(el=>el.onclick=async()=>{const i=+el.dataset.i; if(el.dataset.del==='board'){const row=workingData.about.boardMembers[i]; workingData.about.boardMembers.splice(i,1); await saveAdminChange('admin.board.removed',row?.name||row?.role||'board member',drawAbout);} else {const row=workingData.about.committees[i]; workingData.about.committees.splice(i,1); await saveAdminChange('admin.committee.removed',row?.name||'committee',drawAbout);}});
-  document.getElementById('addBoard').onclick=()=>{workingData.about.boardMembers.unshift(clone(blank.board));drawAbout(); const first=box.querySelector('.admin-record-card'); if(first) setCardStatus(first,'unsaved','Unsaved changes');};
-  document.getElementById('addCommittee').onclick=()=>{workingData.about.committees.unshift(clone(blank.committee));drawAbout(); const first=box.querySelectorAll('.admin-record-card')[workingData.about.boardMembers.length]; if(first) setCardStatus(first,'unsaved','Unsaved changes');};
+  box.innerHTML=`<div class='about-admin-grid'><section><div class='mini-section-head'><h4>Board Members</h4><button id='addBoard' type='button'>+ Add Board Member</button></div><div class='admin-list'>${workingData.about.boardMembers.map((m,i)=>`<article class='summary-row'><div><strong>${escapeHtml(m.role||'Board Member')}</strong><p>${escapeHtml(m.name||'No name')}</p><small>${escapeHtml(previewText(m.description))}</small></div>${listActions(i)}</article>`).join('')||'<p class="help">No board members yet.</p>'}</div></section><section><div class='mini-section-head'><h4>Committees</h4><button id='addCommittee' type='button'>+ Add Committee</button></div><div class='admin-list'>${workingData.about.committees.map((c,i)=>`<article class='summary-row'><div><strong>${escapeHtml(c.name||'Committee')}</strong><p>${escapeHtml(previewText(c.description))}</p></div>${listActions(i)}</article>`).join('')||'<p class="help">No committees yet.</p>'}</div></section></div>`;
+  const openBoard=(index=null,view=false)=>{
+    const row=index===null?clone(blank.board):clone(workingData.about.boardMembers[index]);
+    openAdminDrawer(index===null?'Add Board Member':view?'View Board Member':'Edit Board Member',`<div class='drawer-form ${view?'view-mode':''}'><label>Role<input id='bmRole' value='${escapeHtml(row.role)}' ${view?'readonly':''}></label><label>Name<input id='bmName' value='${escapeHtml(row.name)}' ${view?'readonly':''}></label><label>Short biography/responsibility<textarea id='bmDescription' ${view?'readonly':''}>${escapeHtml(row.description)}</textarea></label>${view?'':`<div class='drawer-actions'><button id='saveBoardMember'>Save Board Member</button><button class='secondary' id='cancelDrawer'>Cancel</button></div>`}</div>`,{afterOpen(drawer){drawer.querySelector('#cancelDrawer')&&(drawer.querySelector('#cancelDrawer').onclick=closeAdminDrawer);drawer.querySelector('#saveBoardMember')&&(drawer.querySelector('#saveBoardMember').onclick=async()=>{const next={role:BWC.sanitize(drawer.querySelector('#bmRole').value,80),name:BWC.sanitize(drawer.querySelector('#bmName').value,120),description:BWC.sanitize(drawer.querySelector('#bmDescription').value,800)}; if(index===null) workingData.about.boardMembers.unshift(next); else workingData.about.boardMembers[index]=next; await saveAdminChange('admin.board.saved',next.name||next.role,drawAbout); closeAdminDrawer(); setMessage('adminToast','Board member saved.','success');});}});
+  };
+  const openCommittee=(index=null,view=false)=>{
+    const row=index===null?clone(blank.committee):clone(workingData.about.committees[index]);
+    openAdminDrawer(index===null?'Add Committee':view?'View Committee':'Edit Committee',`<div class='drawer-form ${view?'view-mode':''}'><label>Committee name<input id='cmName' value='${escapeHtml(row.name)}' ${view?'readonly':''}></label><label>Description<textarea id='cmDescription' ${view?'readonly':''}>${escapeHtml(row.description)}</textarea></label>${view?'':`<div class='drawer-actions'><button id='saveCommittee'>Save Committee</button><button class='secondary' id='cancelDrawer'>Cancel</button></div>`}</div>`,{afterOpen(drawer){drawer.querySelector('#cancelDrawer')&&(drawer.querySelector('#cancelDrawer').onclick=closeAdminDrawer);drawer.querySelector('#saveCommittee')&&(drawer.querySelector('#saveCommittee').onclick=async()=>{const next={name:BWC.sanitize(drawer.querySelector('#cmName').value,120),description:BWC.sanitize(drawer.querySelector('#cmDescription').value,800)}; if(index===null) workingData.about.committees.unshift(next); else workingData.about.committees[index]=next; await saveAdminChange('admin.committee.saved',next.name,drawAbout); closeAdminDrawer(); setMessage('adminToast','Committee saved.','success');});}});
+  };
+  document.getElementById('addBoard').onclick=()=>openBoard();
+  document.getElementById('addCommittee').onclick=()=>openCommittee();
+  box.querySelectorAll('section:first-child [data-view]').forEach(btn=>btn.onclick=()=>openBoard(+btn.dataset.view,true));
+  box.querySelectorAll('section:first-child [data-edit]').forEach(btn=>btn.onclick=()=>openBoard(+btn.dataset.edit));
+  box.querySelectorAll('section:first-child [data-delete]').forEach(btn=>btn.onclick=async()=>{const row=workingData.about.boardMembers[+btn.dataset.delete]; if(row&&await confirmDanger('Delete board member',`Delete ${row.name||row.role}?`,'Delete')){workingData.about.boardMembers.splice(+btn.dataset.delete,1); await saveAdminChange('admin.board.removed',row.name||row.role,drawAbout);}});
+  box.querySelectorAll('section:last-child [data-view]').forEach(btn=>btn.onclick=()=>openCommittee(+btn.dataset.view,true));
+  box.querySelectorAll('section:last-child [data-edit]').forEach(btn=>btn.onclick=()=>openCommittee(+btn.dataset.edit));
+  box.querySelectorAll('section:last-child [data-delete]').forEach(btn=>btn.onclick=async()=>{const row=workingData.about.committees[+btn.dataset.delete]; if(row&&await confirmDanger('Delete committee',`Delete ${row.name}?`,'Delete')){workingData.about.committees.splice(+btn.dataset.delete,1); await saveAdminChange('admin.committee.removed',row.name,drawAbout);}});
 }
 
 function drawEvents(){
   const box=document.getElementById('eventsEditor');
-  box.innerHTML=workingData.events.map((ev,i)=>`<article class='admin-record-card event-card'><div class='record-card-head'><strong>${escapeHtml(ev.title||'New Event')}</strong>${adminStatus()}</div>${ev.image?`<img class='admin-thumb' src='${escapeHtml(BWC.normalizeAssetUrl(ev.image))}' alt='Event preview'>`:''}<input value='${escapeHtml(ev.title)}' data-i='${i}' data-k='title' placeholder='Event title'><input type='datetime-local' value='${escapeHtml(ev.datetime||'')}' data-i='${i}' data-k='datetime'><input value='${escapeHtml(ev.location)}' data-i='${i}' data-k='location' placeholder='Location'><textarea data-i='${i}' data-k='description' placeholder='Description'>${escapeHtml(ev.description)}</textarea><input value='${escapeHtml(ev.rsvpLink||'#')}' data-i='${i}' data-k='rsvpLink' placeholder='RSVP/action link'><input value='${escapeHtml(ev.image||'')}' data-i='${i}' data-k='image' placeholder='Image URL'><label class='buttonlike secondary'>Upload Event Image<input type='file' accept='image/*' data-upload='event' data-i='${i}' hidden></label><div class='record-actions'><button data-save-event='${i}'>Save Event</button><button class='secondary' data-duplicate-event='${i}'>Duplicate</button><button class='secondary' data-cancel-record>Cancel</button><button class='secondary danger' data-del='${i}'>Remove</button></div></article>`).join('')||'<p class="help">No events yet.</p>';
-  box.querySelectorAll('[data-k]').forEach(el=>el.oninput=(e)=>{workingData.events[+e.target.dataset.i][e.target.dataset.k]=e.target.value;});
-  markDirtyFromInputs(box);
-  box.querySelectorAll('[data-save-event]').forEach(el=>el.onclick=async()=>{const event=workingData.events[+el.dataset.saveEvent]; await saveFromButton(el,'admin.event.saved',event?.title||event?.id||'event',drawEvents);});
-  box.querySelectorAll('[data-duplicate-event]').forEach(el=>el.onclick=()=>{const event=clone(workingData.events[+el.dataset.duplicateEvent]); event.id=uid('evt'); event.title=`${event.title||'Event'} Copy`; workingData.events.unshift(event); drawEvents(); setCardStatus(box.querySelector('.admin-record-card'),'unsaved','Unsaved changes');});
-  box.querySelectorAll('[data-cancel-record]').forEach(el=>el.onclick=()=>render());
-  box.querySelectorAll('[data-del]').forEach(el=>el.onclick=async()=>{
-    const event=workingData.events[+el.dataset.del];
-    if(!event||!await confirmDanger('Delete event',`Delete "${event.title||'this event'}" from the resident portal events list?`,'Delete Event')) return;
-    workingData.events.splice(+el.dataset.del,1);
-    await saveAdminChange('admin.event.deleted',event.title||event.id,drawEvents);
-  });
-  box.querySelectorAll('[data-upload="event"]').forEach(el=>el.onchange=()=>handleFileToDataUrl(el,async(result,name)=>{const row=workingData.events[+el.dataset.i];row.image=result; if(!row.title) row.title=name; await saveAdminChange('admin.event.image.uploaded',row.title||name,drawEvents);}));
-  document.getElementById('addEvent').onclick=()=>{const item=clone(blank.event);item.id=uid('evt');workingData.events.unshift(item);drawEvents(); setCardStatus(box.querySelector('.admin-record-card'),'unsaved','Unsaved changes');};
+  box.innerHTML=`<div class='summary-card-grid'>${workingData.events.map((ev,i)=>`<article class='summary-card'>${ev.image?`<img class='summary-thumb' src='${escapeHtml(BWC.normalizeAssetUrl(ev.image))}' alt=''>`:''}<div><strong>${escapeHtml(ev.title||'Untitled event')}</strong><p>${escapeHtml(ev.datetime||'No date')} ${ev.location?`- ${escapeHtml(ev.location)}`:''}</p><small>${escapeHtml(previewText(ev.description))}</small></div><div class='list-actions'><button class='secondary' data-view='${i}'>View</button><button data-edit='${i}'>Edit</button><button class='secondary' data-duplicate='${i}'>Duplicate</button><button class='link-danger' data-delete='${i}'>Delete</button></div></article>`).join('')||'<p class="help">No events yet.</p>'}</div>`;
+  const openEvent=(index=null,view=false)=>{
+    const ev=index===null?clone(blank.event):clone(workingData.events[index]);
+    openAdminDrawer(index===null?'Add Event':view?'View Event':'Edit Event',`<div class='drawer-form ${view?'view-mode':''}'><label>Event title<input id='evTitle' value='${escapeHtml(ev.title)}' ${view?'readonly':''}></label><label>Date/time<input id='evDatetime' type='datetime-local' value='${escapeHtml(ev.datetime||'')}' ${view?'readonly':''}></label><label>Location<input id='evLocation' value='${escapeHtml(ev.location)}' ${view?'readonly':''}></label><label>Description<textarea id='evDescription' ${view?'readonly':''}>${escapeHtml(ev.description)}</textarea></label><label>RSVP/action URL<input id='evRsvpLink' value='${escapeHtml(ev.rsvpLink||'#')}' ${view?'readonly':''}></label><label>Image URL<input id='evImage' value='${escapeHtml(ev.image||'')}' ${view?'readonly':''}></label>${view?'':`<label class='buttonlike secondary'>Upload Event Image<input id='evUpload' type='file' accept='image/*' hidden></label><div class='drawer-actions'><button id='saveEvent'>Save Event</button><button class='secondary' id='cancelDrawer'>Cancel</button></div>`}</div>`,{afterOpen(drawer){let uploadImage=''; const upload=drawer.querySelector('#evUpload'); if(upload) upload.onchange=()=>handleFileToDataUrl(upload,(result)=>{uploadImage=result; drawer.querySelector('#evImage').value=result;}); drawer.querySelector('#cancelDrawer')&&(drawer.querySelector('#cancelDrawer').onclick=closeAdminDrawer); drawer.querySelector('#saveEvent')&&(drawer.querySelector('#saveEvent').onclick=async()=>{const next={id:ev.id||uid('evt'),title:BWC.sanitize(drawer.querySelector('#evTitle').value,140),datetime:drawer.querySelector('#evDatetime').value,location:BWC.sanitize(drawer.querySelector('#evLocation').value,140),description:BWC.sanitize(drawer.querySelector('#evDescription').value,1000),rsvpLink:BWC.sanitize(drawer.querySelector('#evRsvpLink').value,500)||'#',image:uploadImage||BWC.sanitize(drawer.querySelector('#evImage').value,1000)}; if(index===null) workingData.events.unshift(next); else workingData.events[index]=next; await saveAdminChange('admin.event.saved',next.title,drawEvents); closeAdminDrawer(); setMessage('adminToast','Event saved.','success');});}});
+  };
+  document.getElementById('addEvent').onclick=()=>openEvent();
+  box.querySelectorAll('[data-view]').forEach(btn=>btn.onclick=()=>openEvent(+btn.dataset.view,true));
+  box.querySelectorAll('[data-edit]').forEach(btn=>btn.onclick=()=>openEvent(+btn.dataset.edit));
+  box.querySelectorAll('[data-duplicate]').forEach(btn=>btn.onclick=()=>{const ev=clone(workingData.events[+btn.dataset.duplicate]); ev.id=uid('evt'); ev.title=`${ev.title||'Event'} Copy`; workingData.events.unshift(ev); openEvent(0);});
+  box.querySelectorAll('[data-delete]').forEach(btn=>btn.onclick=async()=>{const ev=workingData.events[+btn.dataset.delete]; if(ev&&await confirmDanger('Delete event',`Delete "${ev.title||'this event'}"?`,'Delete Event')){workingData.events.splice(+btn.dataset.delete,1); await saveAdminChange('admin.event.deleted',ev.title||ev.id,drawEvents);}});
 }
 
 function drawProjects(){
   const box=document.getElementById('projectsEditor');
-  box.innerHTML=workingData.projects.map((p,i)=>`<article class='admin-record-card'><div class='record-card-head'><strong>${escapeHtml(p.name||'New Project')}</strong><span class='status-pill'>${escapeHtml(p.status||'Planned')}</span>${adminStatus()}</div><input value='${escapeHtml(p.name)}' data-i='${i}' data-k='name' placeholder='Project name'><select data-i='${i}' data-k='status'><option ${p.status==='Planned'?'selected':''}>Planned</option><option ${p.status==='In Progress'?'selected':''}>In Progress</option><option ${p.status==='Completed'||p.status==='Complete'?'selected':''}>Completed</option><option ${p.status==='On Hold'?'selected':''}>On Hold</option></select><textarea data-i='${i}' data-k='description' placeholder='Project summary'>${escapeHtml(p.description)}</textarea><h4>Documents</h4><div class='project-doc-list'>${(p.documents||[]).map((d,di)=>`<div class='admin-edit-row'><input value='${escapeHtml(d.label||'')}' data-i='${i}' data-doc='${di}' data-k='label' placeholder='Document name'><input value='${escapeHtml(d.url||'')}' data-i='${i}' data-doc='${di}' data-k='url' placeholder='Document URL'><button class='secondary danger' data-dropdoc='${i}' data-doc='${di}'>Remove</button></div>`).join('')||'<p class="help">No project documents yet.</p>'}</div><div class='record-actions'><button data-save-project='${i}'>Save Project</button><button class='secondary' data-adddoc='${i}'>+ Add Document Link</button><label class='buttonlike secondary compact-upload'>Upload Document<input type='file' data-upload='doc' data-i='${i}' hidden></label><button class='secondary' data-cancel-record>Cancel</button><button class='secondary danger' data-delproj='${i}'>Remove Project</button></div></article>`).join('')||'<p class="help">No projects yet.</p>';
-  box.querySelectorAll('[data-k]').forEach(el=>el.oninput=(e)=>{const {i,k,doc}=e.target.dataset; if(doc!==undefined){workingData.projects[+i].documents[+doc][k]=e.target.value;} else {workingData.projects[+i][k]=e.target.value;}});
-  markDirtyFromInputs(box);
-  box.querySelectorAll('[data-save-project]').forEach(el=>el.onclick=async()=>{const p=workingData.projects[+el.dataset.saveProject]; await saveFromButton(el,'admin.project.saved',p?.name||p?.id||'project',drawProjects);});
-  box.querySelectorAll('[data-cancel-record]').forEach(el=>el.onclick=()=>render());
-  box.querySelectorAll('[data-adddoc]').forEach(el=>el.onclick=()=>{const p=workingData.projects[+el.dataset.adddoc];p.documents=p.documents||[];p.documents.push({label:'',url:''});drawProjects();});
-  box.querySelectorAll('[data-dropdoc]').forEach(el=>el.onclick=async()=>{
-    const p=workingData.projects[+el.dataset.dropdoc];
-    const doc=p&&p.documents?p.documents[+el.dataset.doc]:null;
-    if(!doc||!await confirmDanger('Remove project document',`Remove "${doc.label||'this document'}" from ${p.name||'this project'}?`,'Remove Document')) return;
-    p.documents.splice(+el.dataset.doc,1);
-    await saveAdminChange('admin.project.document.removed',`${p.name||p.id}: ${doc.label||doc.url||'document'}`,drawProjects);
-  });
-  box.querySelectorAll('[data-upload="doc"]').forEach(el=>el.onchange=()=>handleFileToDataUrl(el,async(result,name)=>{const p=workingData.projects[+el.dataset.i];p.documents=p.documents||[];p.documents.push({label:name,url:result});await saveAdminChange('admin.project.document.uploaded',`${p.name||p.id}: ${name}`,drawProjects);}));
-  box.querySelectorAll('[data-delproj]').forEach(el=>el.onclick=async()=>{
-    const project=workingData.projects[+el.dataset.delproj];
-    if(!project||!await confirmDanger('Delete project',`Delete "${project.name||'this project'}" from the resident portal project list?`,'Delete Project')) return;
-    workingData.projects.splice(+el.dataset.delproj,1);
-    await saveAdminChange('admin.project.deleted',project.name||project.id,drawProjects);
-  });
-  document.getElementById('addProject').onclick=()=>{const item=clone(blank.project);item.id=uid('prj');workingData.projects.unshift(item);drawProjects(); setCardStatus(box.querySelector('.admin-record-card'),'unsaved','Unsaved changes');};
+  box.innerHTML=`<div class='admin-list'>${workingData.projects.map((p,i)=>`<article class='summary-row'><div><strong>${escapeHtml(p.name||'Untitled project')}</strong><p><span class='status-pill'>${escapeHtml(p.status||'Planned')}</span> ${escapeHtml((p.updatedAt||p.createdAt||'').slice(0,10)||'No date')}</p><small>${escapeHtml(previewText(p.description))}</small></div>${listActions(i)}</article>`).join('')||'<p class="help">No projects yet.</p>'}</div>`;
+  const openProject=(index=null,view=false)=>{
+    const p=index===null?clone(blank.project):clone(workingData.projects[index]); p.documents=p.documents||[];
+    const docsHtml=p.documents.map((d,i)=>`<div class='admin-edit-row project-doc-edit'><input value='${escapeHtml(d.label||'')}' data-pdoc='${i}' data-k='label' placeholder='Document name' ${view?'readonly':''}><input value='${escapeHtml(d.url||'')}' data-pdoc='${i}' data-k='url' placeholder='Document URL' ${view?'readonly':''}>${view?'':`<button class='link-danger' data-remove-pdoc='${i}'>Remove</button>`}</div>`).join('')||'<p class="help">No related documents.</p>';
+    openAdminDrawer(index===null?'Add Project':view?'View Project':'Edit Project',`<div class='drawer-form ${view?'view-mode':''}'><label>Project name<input id='prjName' value='${escapeHtml(p.name)}' ${view?'readonly':''}></label><label>Status<select id='prjStatus' ${view?'disabled':''}><option ${p.status==='Planned'?'selected':''}>Planned</option><option ${p.status==='In Progress'?'selected':''}>In Progress</option><option ${p.status==='Completed'||p.status==='Complete'?'selected':''}>Completed</option><option ${p.status==='On Hold'?'selected':''}>On Hold</option></select></label><label>Description<textarea id='prjDescription' ${view?'readonly':''}>${escapeHtml(p.description)}</textarea></label><h3>Related documents</h3><div id='projectDocsEdit'>${docsHtml}</div>${view?'':`<button id='addProjectDoc' class='secondary' type='button'>+ Add Document</button><div class='drawer-actions'><button id='saveProject'>Save Project</button><button class='secondary' id='cancelDrawer'>Cancel</button></div>`}</div>`,{afterOpen(drawer){const docs=clone(p.documents); const redrawDocs=()=>{drawer.querySelector('#projectDocsEdit').innerHTML=docs.map((d,i)=>`<div class='admin-edit-row project-doc-edit'><input value='${escapeHtml(d.label||'')}' data-pdoc='${i}' data-k='label' placeholder='Document name'><input value='${escapeHtml(d.url||'')}' data-pdoc='${i}' data-k='url' placeholder='Document URL'><button class='link-danger' data-remove-pdoc='${i}'>Remove</button></div>`).join('')||'<p class="help">No related documents.</p>'; drawer.querySelectorAll('[data-remove-pdoc]').forEach(btn=>btn.onclick=()=>{docs.splice(+btn.dataset.removePdoc,1); redrawDocs();});}; drawer.querySelector('#addProjectDoc')&&(drawer.querySelector('#addProjectDoc').onclick=()=>{docs.push({label:'',url:''}); redrawDocs();}); drawer.querySelector('#cancelDrawer')&&(drawer.querySelector('#cancelDrawer').onclick=closeAdminDrawer); drawer.querySelector('#saveProject')&&(drawer.querySelector('#saveProject').onclick=async()=>{drawer.querySelectorAll('[data-pdoc]').forEach(input=>{docs[+input.dataset.pdoc][input.dataset.k]=BWC.sanitize(input.value,500);}); const next={id:p.id||uid('prj'),name:BWC.sanitize(drawer.querySelector('#prjName').value,140),status:drawer.querySelector('#prjStatus').value,description:BWC.sanitize(drawer.querySelector('#prjDescription').value,1200),documents:docs.filter(d=>d.label||d.url),updatedAt:new Date().toISOString()}; if(index===null) workingData.projects.unshift(next); else workingData.projects[index]=next; await saveAdminChange('admin.project.saved',next.name,drawProjects); closeAdminDrawer(); setMessage('adminToast','Project saved.','success');});}});
+  };
+  document.getElementById('addProject').onclick=()=>openProject();
+  box.querySelectorAll('[data-view]').forEach(btn=>btn.onclick=()=>openProject(+btn.dataset.view,true));
+  box.querySelectorAll('[data-edit]').forEach(btn=>btn.onclick=()=>openProject(+btn.dataset.edit));
+  box.querySelectorAll('[data-delete]').forEach(btn=>btn.onclick=async()=>{const p=workingData.projects[+btn.dataset.delete]; if(p&&await confirmDanger('Delete project',`Delete "${p.name||'this project'}"?`,'Delete Project')){workingData.projects.splice(+btn.dataset.delete,1); await saveAdminChange('admin.project.deleted',p.name||p.id,drawProjects);}});
 }
 
 function drawDocuments(){
   const box=document.getElementById('documentsEditor');
   const docs=workingData.portal.documents||[];
   const categoryOptions=docCategories.map(category=>`<option value='${escapeHtml(category)}'>${escapeHtml(category)}</option>`).join('');
-  box.innerHTML=`
-    <div class='doc-admin-form'>
-      <div class='grid two doc-admin-row'>
-        <input id='docName' placeholder='Document name'>
-        <select id='docCategory'>${categoryOptions}</select>
-        <input id='docUrl' placeholder='Document URL'>
-        <input id='docDescription' placeholder='Short description (optional)'>
-      </div>
-      <div id='documentMsg' class='form-message' role='status'></div>
-      <button id='addPortalDocument'>Add Document Link</button>
-      <p class='help'>Upload file storage is planned for the next storage phase. For now, add a Google Drive, PDF, or hosted file URL.</p>
-    </div>
-    <div class='doc-library'>
-      ${docCategories.map(category=>{
-        const items=docs.filter(doc=>(doc.category||'Forms')===category);
-        return `<section class='doc-category'><h3>${escapeHtml(category)} (${items.length})</h3>${items.map(doc=>`
-          <article class='doc-item admin-edit-row'>
-            <input value='${escapeHtml(doc.name||'')}' data-doc-id='${escapeHtml(doc.id)}' data-doc-k='name' placeholder='Document name'>
-            <select data-doc-id='${escapeHtml(doc.id)}' data-doc-k='category'>${docCategories.map(option=>`<option value='${escapeHtml(option)}' ${(doc.category||'Forms')===option?'selected':''}>${escapeHtml(option)}</option>`).join('')}</select>
-            <input value='${escapeHtml(doc.url||'')}' data-doc-id='${escapeHtml(doc.id)}' data-doc-k='url' placeholder='Document URL'>
-            <input value='${escapeHtml(doc.description||'')}' data-doc-id='${escapeHtml(doc.id)}' data-doc-k='description' placeholder='Description'>
-            ${adminStatus()}
-            <button data-save-portal-doc='${escapeHtml(doc.id)}'>Save</button>
-            <button class='secondary danger' data-del-portal-doc='${escapeHtml(doc.id)}'>Remove</button>
-          </article>`).join('')||'<p class="help">No documents in this category.</p>'}</section>`;
-      }).join('')}
-    </div>`;
-  document.getElementById('addPortalDocument').onclick=async()=>{
-    const name=BWC.sanitize(document.getElementById('docName').value,140);
-    const category=document.getElementById('docCategory').value;
-    const url=BWC.sanitize(document.getElementById('docUrl').value,500);
-    const description=BWC.sanitize(document.getElementById('docDescription').value,240);
-    if(!name||!url){setMessage('documentMsg','Add a document name and URL.','error');return;}
-    docs.push({id:uid('doc'),name,category,description,url});
-    setMessage('documentMsg','Saving document link...','info');
-    await saveAdminChange('admin.document.added',`${category}: ${name}`,drawDocuments);
+  box.innerHTML=`<div class='list-toolbar'><input id='docSearchAdmin' type='search' placeholder='Search documents'><button id='addPortalDocument'>+ Add Document</button></div><div class='doc-library'>${docCategories.map(category=>{const items=docs.filter(doc=>(doc.category||'Forms')===category);return `<section class='doc-category'><h3>${escapeHtml(category)} (${items.length})</h3><div class='admin-list'>${items.map(doc=>`<article class='summary-row' data-doc-row data-keywords='${escapeHtml(`${doc.name||''} ${doc.description||''} ${doc.url||''}`.toLowerCase())}'><div><strong>${escapeHtml(doc.name||'Untitled document')}</strong><p>${escapeHtml(doc.description||'No description')}</p><small>${escapeHtml(doc.url||'No URL')}</small></div><div class='list-actions'><button class='secondary' data-view='${escapeHtml(doc.id)}'>View</button><button data-edit='${escapeHtml(doc.id)}'>Edit</button><button class='link-danger' data-delete='${escapeHtml(doc.id)}'>Remove</button></div></article>`).join('')||'<p class="help">No documents in this category.</p>'}</div></section>`;}).join('')}</div>`;
+  const openDoc=(id=null,view=false)=>{
+    const index=docs.findIndex(d=>d.id===id);
+    const doc=id?clone(docs[index]):clone(blank.document);
+    openAdminDrawer(id?view?'View Document':'Edit Document':'Add Document',`<div class='drawer-form ${view?'view-mode':''}'><label>Document name<input id='docNameEdit' value='${escapeHtml(doc.name||'')}' ${view?'readonly':''}></label><label>Category<select id='docCategoryEdit' ${view?'disabled':''}>${docCategories.map(option=>`<option value='${escapeHtml(option)}' ${(doc.category||'Forms')===option?'selected':''}>${escapeHtml(option)}</option>`).join('')}</select></label><label>Document URL<input id='docUrlEdit' value='${escapeHtml(doc.url||'')}' ${view?'readonly':''}></label><label>Description<textarea id='docDescriptionEdit' ${view?'readonly':''}>${escapeHtml(doc.description||'')}</textarea></label>${view?'':`<div class='drawer-actions'><button id='saveDocument'>Save Document</button><button class='secondary' id='cancelDrawer'>Cancel</button></div>`}</div>`,{afterOpen(drawer){drawer.querySelector('#cancelDrawer')&&(drawer.querySelector('#cancelDrawer').onclick=closeAdminDrawer); drawer.querySelector('#saveDocument')&&(drawer.querySelector('#saveDocument').onclick=async()=>{const next={id:doc.id||uid('doc'),name:BWC.sanitize(drawer.querySelector('#docNameEdit').value,140),category:drawer.querySelector('#docCategoryEdit').value,url:BWC.sanitize(drawer.querySelector('#docUrlEdit').value,500),description:BWC.sanitize(drawer.querySelector('#docDescriptionEdit').value,240)}; if(!next.name||!next.url) return alert('Add a document name and URL.'); if(id) docs[index]=next; else docs.unshift(next); await saveAdminChange('admin.document.saved',`${next.category}: ${next.name}`,drawDocuments); closeAdminDrawer(); setMessage('adminToast','Document saved.','success');});}});
   };
-  box.querySelectorAll('[data-doc-k]').forEach(el=>el.oninput=e=>{const doc=docs.find(item=>item.id===e.target.dataset.docId); if(doc) doc[e.target.dataset.docK]=e.target.value;});
-  box.querySelectorAll('[data-doc-k]').forEach(el=>el.onchange=e=>{const doc=docs.find(item=>item.id===e.target.dataset.docId); if(doc) doc[e.target.dataset.docK]=e.target.value;});
-  markDirtyFromInputs(box);
-  box.querySelectorAll('[data-save-portal-doc]').forEach(btn=>btn.onclick=async()=>{const doc=docs.find(item=>item.id===btn.dataset.savePortalDoc); await saveFromButton(btn,'admin.document.saved',doc?.name||doc?.id||'document',drawDocuments);});
-  box.querySelectorAll('[data-del-portal-doc]').forEach(btn=>btn.onclick=async()=>{
-    const index=docs.findIndex(doc=>doc.id===btn.dataset.delPortalDoc);
-    const doc=docs[index];
-    if(index<0||!doc) return;
-    if(!await confirmDanger('Remove document',`Remove "${doc.name||'this document'}" from the portal document library?`,'Remove Document')) return;
-    docs.splice(index,1);
-    await saveAdminChange('admin.document.removed',`${doc.category||'Documents'}: ${doc.name||doc.id}`,drawDocuments);
-  });
+  document.getElementById('addPortalDocument').onclick=()=>openDoc();
+  box.querySelectorAll('[data-view]').forEach(btn=>btn.onclick=()=>openDoc(btn.dataset.view,true));
+  box.querySelectorAll('[data-edit]').forEach(btn=>btn.onclick=()=>openDoc(btn.dataset.edit));
+  box.querySelectorAll('[data-delete]').forEach(btn=>btn.onclick=async()=>{const index=docs.findIndex(doc=>doc.id===btn.dataset.delete); const doc=docs[index]; if(index>=0&&await confirmDanger('Remove document',`Remove "${doc.name||'this document'}"?`,'Remove Document')){docs.splice(index,1); await saveAdminChange('admin.document.removed',doc.name||doc.id,drawDocuments);}});
+  document.getElementById('docSearchAdmin').oninput=(event)=>{const q=event.target.value.toLowerCase().trim(); box.querySelectorAll('[data-doc-row]').forEach(row=>row.style.display=!q||row.dataset.keywords.includes(q)?'flex':'none');};
 }
 
 function drawResources(){
@@ -320,19 +305,16 @@ function drawResources(){
 }
 function drawLots(){
   const box=document.getElementById('lotsEditor');
-  box.innerHTML=`<div class='map-lot-list'>${workingData.mapLots.map((l,i)=>`<div class='admin-edit-row map-lot-row' data-lot-row data-keywords='${escapeHtml(`${l.lot||''} ${l.address||''} ${l.parcel||''}`.toLowerCase())}'><input value='${escapeHtml(l.lot||'')}' data-i='${i}' data-k='lot' placeholder='Lot #'><input value='${escapeHtml(l.address)}' data-i='${i}' data-k='address' placeholder='Address'><input value='${escapeHtml(l.parcel||'')}' data-i='${i}' data-k='parcel' placeholder='Parcel'><input value='${escapeHtml(l.phase||'')}' data-i='${i}' data-k='phase' placeholder='Phase'><input value='${escapeHtml(l.lat)}' data-i='${i}' data-k='lat' type='number' step='0.000001' placeholder='Latitude'><input value='${escapeHtml(l.lng)}' data-i='${i}' data-k='lng' type='number' step='0.000001' placeholder='Longitude'><input value='${escapeHtml(l.zillowUrl||'')}' data-i='${i}' data-k='zillowUrl' placeholder='Zillow URL'>${adminStatus()}<button data-save-lot='${i}'>Save</button><button class='secondary' data-cancel-record>Cancel</button><button class='secondary danger' data-del='${i}'>Remove</button></div>`).join('')}</div><button id='addLot'>+ Add Lot</button>`;
-  box.querySelectorAll('[data-k]').forEach(el=>el.oninput=(e)=>{const i=+e.target.dataset.i,k=e.target.dataset.k; workingData.mapLots[i][k]=(k==='lat'||k==='lng')?Number(e.target.value):e.target.value;});
-  markDirtyFromInputs(box);
-  box.querySelectorAll('[data-save-lot]').forEach(el=>el.onclick=async()=>{const lot=workingData.mapLots[+el.dataset.saveLot]; await saveFromButton(el,'admin.lot.saved',lot?.address||lot?.lot||'lot',drawLots);});
-  box.querySelectorAll('[data-cancel-record]').forEach(el=>el.onclick=()=>render());
-  box.querySelectorAll('[data-del]').forEach(el=>el.onclick=async()=>{
-    const lot=workingData.mapLots[+el.dataset.del];
-    workingData.mapLots.splice(+el.dataset.del,1);
-    await saveAdminChange('admin.lot.removed',lot?.address||lot?.lot||'lot',drawLots);
-  });
-  document.getElementById('addLot').onclick=()=>{const lot=clone(blank.mapLot); lot.id=uid('lot'); workingData.mapLots.unshift(lot);drawLots(); setCardStatus(box.querySelector('.admin-edit-row'),'unsaved','Unsaved changes');};
+  box.innerHTML=`<div class='admin-list'>${workingData.mapLots.map((l,i)=>`<article class='summary-row' data-lot-row data-keywords='${escapeHtml(`${l.lot||''} ${l.address||''} ${l.parcel||''}`.toLowerCase())}'><div><strong>Lot ${escapeHtml(l.lot||'?')}</strong><p>${escapeHtml(l.address||'No address')}</p><small>${escapeHtml(l.parcel||'No parcel')} ${l.lat&&l.lng?`- ${escapeHtml(l.lat)}, ${escapeHtml(l.lng)}`:''}</small></div><div class='list-actions'><button class='secondary' data-view='${i}'>View</button><button data-edit='${i}'>Edit</button></div></article>`).join('')}</div><button id='addLot'>+ Add Lot</button>`;
+  const openLot=(index=null,view=false)=>{
+    const lot=index===null?clone(blank.mapLot):clone(workingData.mapLots[index]);
+    openAdminDrawer(index===null?'Add Lot':view?'View Lot':'Edit Lot',`<div class='drawer-form ${view?'view-mode':''}'><label>Lot<input id='lotNumEdit' value='${escapeHtml(lot.lot||'')}' ${view?'readonly':''}></label><label>Address<input id='lotAddressEdit' value='${escapeHtml(lot.address||'')}' ${view?'readonly':''}></label><label>Parcel<input id='lotParcelEdit' value='${escapeHtml(lot.parcel||'')}' ${view?'readonly':''}></label><label>Phase<input id='lotPhaseEdit' value='${escapeHtml(lot.phase||'')}' ${view?'readonly':''}></label><label>Latitude<input id='lotLatEdit' type='number' step='0.000001' value='${escapeHtml(lot.lat||'')}' ${view?'readonly':''}></label><label>Longitude<input id='lotLngEdit' type='number' step='0.000001' value='${escapeHtml(lot.lng||'')}' ${view?'readonly':''}></label><label>Zillow URL<input id='lotZillowEdit' value='${escapeHtml(lot.zillowUrl||'')}' ${view?'readonly':''}></label>${view?'':`<div class='drawer-actions'><button id='saveLot'>Save Lot</button><button class='secondary' id='cancelDrawer'>Cancel</button></div>`}</div>`,{afterOpen(drawer){drawer.querySelector('#cancelDrawer')&&(drawer.querySelector('#cancelDrawer').onclick=closeAdminDrawer); drawer.querySelector('#saveLot')&&(drawer.querySelector('#saveLot').onclick=async()=>{const next={...lot,lot:BWC.sanitize(drawer.querySelector('#lotNumEdit').value,20),address:BWC.sanitize(drawer.querySelector('#lotAddressEdit').value,160),parcel:BWC.sanitize(drawer.querySelector('#lotParcelEdit').value,80),phase:BWC.sanitize(drawer.querySelector('#lotPhaseEdit').value,40),lat:Number(drawer.querySelector('#lotLatEdit').value),lng:Number(drawer.querySelector('#lotLngEdit').value),zillowUrl:BWC.sanitize(drawer.querySelector('#lotZillowEdit').value,600)}; if(index===null) workingData.mapLots.unshift(next); else workingData.mapLots[index]=next; await saveAdminChange('admin.lot.saved',next.address||next.lot,drawLots); closeAdminDrawer(); setMessage('adminToast','Lot saved.','success');});}});
+  };
+  document.getElementById('addLot').onclick=()=>openLot();
+  box.querySelectorAll('[data-view]').forEach(btn=>btn.onclick=()=>openLot(+btn.dataset.view,true));
+  box.querySelectorAll('[data-edit]').forEach(btn=>btn.onclick=()=>openLot(+btn.dataset.edit));
   const search=document.getElementById('lotSearchAdmin');
-  if(search) search.oninput=()=>{const q=search.value.toLowerCase().trim(); box.querySelectorAll('[data-lot-row]').forEach(row=>row.style.display=!q||row.dataset.keywords.includes(q)?'grid':'none');};
+  if(search) search.oninput=()=>{const q=search.value.toLowerCase().trim(); box.querySelectorAll('[data-lot-row]').forEach(row=>row.style.display=!q||row.dataset.keywords.includes(q)?'flex':'none');};
 }
 
 function drawRequests(){
@@ -341,35 +323,11 @@ function drawRequests(){
   const allRequests=workingData.portal.requests||[];
   const requests=selectedFilter==='all'?allRequests:allRequests.filter(req=>String(req.type||req.status||'').includes(selectedFilter)||String(req.status||'').includes(selectedFilter));
   const statusOptions=['Submitted','Pending','Approved','Denied'];
-  box.innerHTML=requests.length?requests.map((req,i)=>`
-    <div class='admin-record-card request-admin-row'>
-      <div class='request-admin-head'>
-        <strong>#${escapeHtml(req.caseNumber||'Unnumbered')}</strong>
-        <span>${escapeHtml(req.type||'Request')}</span>
-        <b>${escapeHtml(req.status||'Submitted')}</b>
-      </div>
-      <p>${escapeHtml(req.description||'No description provided.')}</p>
-      <small>${escapeHtml(req.residentName||'Resident')}${req.address?` - ${escapeHtml(req.address)}`:''}${req.lot?` - Lot ${escapeHtml(req.lot)}`:''}${req.parcel?` - Parcel ${escapeHtml(req.parcel)}`:''}</small>
-      <div class='request-links'>
-        ${req.attachmentName?`<a href='${escapeHtml(req.attachmentUrl||'#')}' target='_blank' rel='noopener noreferrer'>${escapeHtml(req.attachmentName)}</a>`:''}
-        ${req.fileLink?`<a href='${escapeHtml(req.fileLink)}' target='_blank' rel='noopener noreferrer'>Linked file</a>`:''}
-      </div>
-      <div class='grid two'>
-        <select data-req-status='${escapeHtml(req.id)}'>${statusOptions.map(status=>`<option ${String(req.status||'Submitted')===status?'selected':''}>${status}</option>`).join('')}</select>
-        <input data-req-note='${escapeHtml(req.id)}' value='${escapeHtml(req.adminNote||'')}' placeholder='Admin note visible to resident'>
-      </div>
-      <div class='record-actions'>${adminStatus()}<button data-save-req='${escapeHtml(req.id)}'>Save Review Status</button></div>
-    </div>`).join(''):'<p class="help">No resident requests have been submitted yet.</p>';
-  markDirtyFromInputs(box);
-  box.querySelectorAll('[data-save-req]').forEach(btn=>btn.onclick=async()=>{
-    const req=allRequests.find(item=>item.id===btn.dataset.saveReq);
+  box.innerHTML=requests.length?`<div class='admin-list'>${requests.map(req=>`<article class='summary-row'><div><strong>#${escapeHtml(req.caseNumber||'Unnumbered')}</strong><p>${escapeHtml(req.type||'Request')} - <span class='status-pill'>${escapeHtml(req.status||'Submitted')}</span></p><small>${escapeHtml(req.residentName||'Resident')} ${req.createdAt?`- ${escapeHtml(req.createdAt.slice(0,10))}`:''}</small></div><div class='list-actions'><button data-review-req='${escapeHtml(req.id)}'>Review</button></div></article>`).join('')}</div>`:'<p class="help">No resident requests have been submitted yet.</p>';
+  box.querySelectorAll('[data-review-req]').forEach(btn=>btn.onclick=()=>{
+    const req=allRequests.find(item=>item.id===btn.dataset.reviewReq);
     if(!req) return;
-    req.status=box.querySelector(`[data-req-status="${req.id}"]`).value;
-    req.adminNote=BWC.sanitize(box.querySelector(`[data-req-note="${req.id}"]`).value,240);
-    req.updatedAt=new Date().toISOString();
-    await saveFromButton(btn,'request.review',`${req.caseNumber||req.id}: ${req.status}`);
-    drawRequests();
-    drawDashboardCounts();
+    openAdminDrawer('Review Request',`<div class='drawer-form'><p><strong>#${escapeHtml(req.caseNumber||'Unnumbered')}</strong> ${escapeHtml(req.type||'Request')}</p><p>${escapeHtml(req.description||'No description provided.')}</p><p class='help'>${escapeHtml(req.residentName||'Resident')} ${req.address?`- ${escapeHtml(req.address)}`:''} ${req.lot?`- Lot ${escapeHtml(req.lot)}`:''}</p>${req.attachmentName?`<a href='${escapeHtml(req.attachmentUrl||'#')}' target='_blank' rel='noopener noreferrer'>${escapeHtml(req.attachmentName)}</a>`:''}${req.fileLink?`<a href='${escapeHtml(req.fileLink)}' target='_blank' rel='noopener noreferrer'>Linked file</a>`:''}<label>Status<select id='reqStatusEdit'>${statusOptions.map(status=>`<option ${String(req.status||'Submitted')===status?'selected':''}>${status}</option>`).join('')}</select></label><label>Resident-visible note<input id='reqNoteEdit' value='${escapeHtml(req.adminNote||'')}'></label><div class='drawer-actions'><button id='saveReqReview'>Save Review Status</button><button class='secondary' id='cancelDrawer'>Cancel</button></div></div>`,{afterOpen(drawer){drawer.querySelector('#cancelDrawer').onclick=closeAdminDrawer; drawer.querySelector('#saveReqReview').onclick=async()=>{req.status=drawer.querySelector('#reqStatusEdit').value; req.adminNote=BWC.sanitize(drawer.querySelector('#reqNoteEdit').value,240); req.updatedAt=new Date().toISOString(); await saveAdminChange('request.review',`${req.caseNumber||req.id}: ${req.status}`,drawRequests); drawDashboardCounts(); closeAdminDrawer(); setMessage('adminToast','Request review saved.','success');};}});
   });
   const filter=document.getElementById('requestFilter');
   if(filter) filter.onchange=drawRequests;
@@ -419,28 +377,17 @@ function drawNewsletters(){
   if(!box) return;
   const newsletters=workingData.portal.newsletters||[];
   const recipients=(workingData.portal.residents||[]).filter(r=>r.status==='active'&&r.email&&r.notificationPreferences?.newsletters!==false);
-  box.innerHTML=`<div class='doc-admin-form'><input id='newsletterSubject' placeholder='Newsletter subject'><textarea id='newsletterBody' placeholder='Newsletter body'></textarea><div class='grid two'><input id='newsletterSendAt' type='datetime-local'><input id='newsletterExpiresAt' type='date'></div><input id='newsletterAttachmentUrl' placeholder='Optional attachment URL'><button id='saveNewsletterDraft'>Save Draft</button><button id='sendNewsletterNow'>Send / Publish Now</button><p class='help'>Estimated opted-in recipients: ${recipients.length}. External email delivery is queued for provider integration; this logs the send and publishes the archive item.</p></div>${newsletters.map(n=>`<div class='item'><strong>${escapeHtml(n.subject||'Newsletter')}</strong><br><small>${escapeHtml(n.status||'Draft')} - ${escapeHtml((n.sentAt||n.sendAt||n.createdAt||'').slice(0,16).replace('T',' '))} - ${Number(n.recipientCount||0)} recipients</small><p>${escapeHtml(n.body||'')}</p><button class='secondary danger' data-remove-newsletter='${escapeHtml(n.id)}'>Remove Newsletter</button></div>`).join('')||'<p class="help">No newsletters yet.</p>'}`;
-  const buildNewsletter=(status)=>({id:uid('nl'),subject:BWC.sanitize(document.getElementById('newsletterSubject').value,180),body:BWC.sanitize(document.getElementById('newsletterBody').value,4000),attachmentName:'',attachmentUrl:BWC.sanitize(document.getElementById('newsletterAttachmentUrl').value,500),status,sendAt:document.getElementById('newsletterSendAt').value,sentAt:status==='Published'?new Date().toISOString():'',expiresAt:document.getElementById('newsletterExpiresAt').value,recipientCount:status==='Published'?recipients.length:0,createdAt:new Date().toISOString()});
-  document.getElementById('saveNewsletterDraft').onclick=async()=>{
-    const newsletter=buildNewsletter('Draft');
-    if(!newsletter.subject||!newsletter.body) return alert('Add a subject and body.');
-    newsletters.unshift(newsletter);
-    await saveAdminChange('admin.newsletter.draft',newsletter.subject,drawNewsletters);
+  box.innerHTML=`<div class='list-toolbar'><button id='createAnnouncement'>+ Create Announcement</button><button id='createNewsletter'>+ Create Newsletter</button></div><div class='admin-list'>${newsletters.map(n=>`<article class='summary-row'><div><strong>${escapeHtml(n.subject||'Newsletter')}</strong><p>${escapeHtml(n.status||'Draft')} - ${escapeHtml((n.sentAt||n.sendAt||n.createdAt||'').slice(0,10))}</p><small>${escapeHtml(previewText(n.body))}</small></div><div class='list-actions'><button class='secondary' data-view='${escapeHtml(n.id)}'>View</button><button data-edit='${escapeHtml(n.id)}'>Edit</button><button class='link-danger' data-delete='${escapeHtml(n.id)}'>Archive</button></div></article>`).join('')||'<p class="help">No newsletters or announcements yet.</p>'}</div><p class='help'>Estimated opted-in recipients: ${recipients.length}. External email delivery is queued for provider integration.</p>`;
+  const openComposer=(id=null,type='Newsletter',view=false)=>{
+    const index=newsletters.findIndex(n=>n.id===id);
+    const n=id?clone(newsletters[index]):{id:uid('nl'),subject:'',body:'',attachmentUrl:'',status:'Draft',sendAt:'',expiresAt:''};
+    openAdminDrawer(id?view?'View Communication':'Edit Communication':`Create ${type}`,`<div class='drawer-form ${view?'view-mode':''}'><label>Title<input id='nlSubject' value='${escapeHtml(n.subject||'')}' ${view?'readonly':''}></label><label>Body<textarea id='nlBody' ${view?'readonly':''}>${escapeHtml(n.body||'')}</textarea></label><label>Schedule date/time<input id='nlSendAt' type='datetime-local' value='${escapeHtml(n.sendAt||'')}' ${view?'readonly':''}></label><label>Expiration date<input id='nlExpiresAt' type='date' value='${escapeHtml(n.expiresAt||'')}' ${view?'readonly':''}></label><label>Attachment URL<input id='nlAttachmentUrl' value='${escapeHtml(n.attachmentUrl||'')}' ${view?'readonly':''}></label>${view?'':`<div class='drawer-actions'><button id='saveNewsletterDraft'>Save Draft</button><button id='publishNewsletter'>Publish Now</button><button class='secondary' id='cancelDrawer'>Cancel</button></div>`}</div>`,{afterOpen(drawer){const build=(status)=>({...n,subject:BWC.sanitize(drawer.querySelector('#nlSubject').value,180),body:BWC.sanitize(drawer.querySelector('#nlBody').value,4000),attachmentUrl:BWC.sanitize(drawer.querySelector('#nlAttachmentUrl').value,500),status,sendAt:drawer.querySelector('#nlSendAt').value,sentAt:status==='Published'?new Date().toISOString():n.sentAt||'',expiresAt:drawer.querySelector('#nlExpiresAt').value,recipientCount:status==='Published'?recipients.length:n.recipientCount||0,createdAt:n.createdAt||new Date().toISOString()}); drawer.querySelector('#cancelDrawer')&&(drawer.querySelector('#cancelDrawer').onclick=closeAdminDrawer); const save=async(status)=>{const next=build(status); if(!next.subject||!next.body) return alert('Add a title and body.'); if(id) newsletters[index]=next; else newsletters.unshift(next); if(status==='Published') recipients.forEach(r=>workingData.portal.notifications.unshift({id:uid('ntf'),type:'newsletter',residentId:r.id,email:r.email,subject:next.subject,message:'Newsletter queued for email delivery.',status:'queued',createdAt:new Date().toISOString()})); await saveAdminChange(status==='Published'?'admin.newsletter.sent':'admin.newsletter.draft',next.subject,drawNewsletters); closeAdminDrawer(); setMessage('adminToast','Communication saved.','success');}; drawer.querySelector('#saveNewsletterDraft')&&(drawer.querySelector('#saveNewsletterDraft').onclick=()=>save('Draft')); drawer.querySelector('#publishNewsletter')&&(drawer.querySelector('#publishNewsletter').onclick=()=>save('Published'));}});
   };
-  document.getElementById('sendNewsletterNow').onclick=async()=>{
-    const newsletter=buildNewsletter('Published');
-    if(!newsletter.subject||!newsletter.body) return alert('Add a subject and body.');
-    newsletters.unshift(newsletter);
-    recipients.forEach(r=>workingData.portal.notifications.unshift({id:uid('ntf'),type:'newsletter',residentId:r.id,email:r.email,subject:newsletter.subject,message:'Newsletter queued for email delivery.',status:'queued',createdAt:new Date().toISOString()}));
-    await saveAdminChange('admin.newsletter.sent',`${newsletter.subject}: ${recipients.length} recipients`,drawNewsletters);
-  };
-  box.querySelectorAll('[data-remove-newsletter]').forEach(btn=>btn.onclick=async()=>{
-    const index=newsletters.findIndex(n=>n.id===btn.dataset.removeNewsletter);
-    const newsletter=newsletters[index];
-    if(index<0||!await confirmDanger('Remove newsletter',`Remove "${newsletter.subject||'this newsletter'}" from the archive?`,'Remove Newsletter')) return;
-    newsletters.splice(index,1);
-    await saveAdminChange('admin.newsletter.removed',newsletter.subject||newsletter.id,drawNewsletters);
-  });
+  document.getElementById('createAnnouncement').onclick=()=>openComposer(null,'Announcement');
+  document.getElementById('createNewsletter').onclick=()=>openComposer(null,'Newsletter');
+  box.querySelectorAll('[data-view]').forEach(btn=>btn.onclick=()=>openComposer(btn.dataset.view,'Newsletter',true));
+  box.querySelectorAll('[data-edit]').forEach(btn=>btn.onclick=()=>openComposer(btn.dataset.edit));
+  box.querySelectorAll('[data-delete]').forEach(btn=>btn.onclick=async()=>{const index=newsletters.findIndex(n=>n.id===btn.dataset.delete); const n=newsletters[index]; if(index>=0&&await confirmDanger('Archive communication',`Archive "${n.subject||'this item'}"?`,'Archive')){n.status='Archived'; await saveAdminChange('admin.newsletter.archived',n.subject||n.id,drawNewsletters);}});
 }
 
 function drawPolls(){
@@ -448,30 +395,15 @@ function drawPolls(){
   if(!box) return;
   const polls=workingData.portal.polls||[];
   const responses=workingData.portal.pollResponses||[];
-  box.innerHTML=`<div class='doc-admin-form'><input id='pollQuestion' placeholder='Poll or survey question'><select id='pollAnswerType'><option value='single'>Single choice</option><option value='multiple'>Multiple choice</option><option value='free-text'>Free text survey</option></select><textarea id='pollOptions' placeholder='Options, one per line. Leave blank for free-text surveys.'></textarea><div class='grid two'><input id='pollStartDate' type='date'><input id='pollEndDate' type='date'></div><label class='inline-check'><input id='pollAnonymous' type='checkbox'> Store responses anonymously</label><label class='inline-check'><input id='pollShowResults' type='checkbox' checked> Show results to residents</label><button id='addPoll'>Create Poll / Survey</button></div>${polls.map(poll=>`<div class='item'><strong>${escapeHtml(poll.question)}</strong><br><small>${escapeHtml(poll.answerType||'single')} - ${escapeHtml(poll.startDate||'')} to ${escapeHtml(poll.endDate||'')} - ${responses.filter(r=>r.pollId===poll.id).length} responses</small><div class='grid two'><select data-poll-status='${escapeHtml(poll.id)}'><option ${poll.status==='Open'?'selected':''}>Open</option><option ${poll.status==='Closed'?'selected':''}>Closed</option><option ${poll.status==='Archived'?'selected':''}>Archived</option></select><button data-save-poll-status='${escapeHtml(poll.id)}'>Save Status</button></div><button class='secondary danger' data-remove-poll='${escapeHtml(poll.id)}'>Remove Poll</button></div>`).join('')||'<p class="help">No polls have been created yet.</p>'}`;
-  document.getElementById('addPoll').onclick=async()=>{
-    const question=BWC.sanitize(document.getElementById('pollQuestion').value,220);
-    const answerType=document.getElementById('pollAnswerType').value;
-    const options=document.getElementById('pollOptions').value.split('\n').map(option=>BWC.sanitize(option,120)).filter(Boolean);
-    if(!question) return alert('Add a poll question.');
-    if(answerType!=='free-text'&&options.length<2) return alert('Add at least two answer options.');
-    polls.unshift({id:uid('poll'),question,answerType,options,startDate:document.getElementById('pollStartDate').value,endDate:document.getElementById('pollEndDate').value,anonymous:document.getElementById('pollAnonymous').checked,showResults:document.getElementById('pollShowResults').checked,status:'Open',createdAt:new Date().toISOString()});
-    await saveAdminChange('admin.poll.created',question,drawPolls);
+  box.innerHTML=`<div class='list-toolbar'><button id='addPoll'>+ Create Poll</button></div><div class='admin-list'>${polls.map(poll=>`<article class='summary-row'><div><strong>${escapeHtml(poll.question)}</strong><p>${escapeHtml(poll.status||'Open')} - closes ${escapeHtml(poll.endDate||'not set')}</p><small>${responses.filter(r=>r.pollId===poll.id).length} responses</small></div><div class='list-actions'><button class='secondary' data-results='${escapeHtml(poll.id)}'>View Results</button><button data-edit='${escapeHtml(poll.id)}'>Edit</button><button class='link-danger' data-close='${escapeHtml(poll.id)}'>Close</button></div></article>`).join('')||'<p class="help">No polls have been created yet.</p>'}</div>`;
+  const openPoll=(id=null)=>{
+    const index=polls.findIndex(p=>p.id===id); const poll=id?clone(polls[index]):{id:uid('poll'),question:'',answerType:'single',options:[],startDate:'',endDate:'',anonymous:false,showResults:true,status:'Open'};
+    openAdminDrawer(id?'Edit Poll':'Create Poll',`<div class='drawer-form'><label>Question<input id='pollQuestionEdit' value='${escapeHtml(poll.question||'')}'></label><label>Question type<select id='pollAnswerTypeEdit'><option value='single' ${poll.answerType==='single'?'selected':''}>Single choice</option><option value='multiple' ${poll.answerType==='multiple'?'selected':''}>Multiple choice</option><option value='free-text' ${poll.answerType==='free-text'?'selected':''}>Free text survey</option></select></label><label>Options<textarea id='pollOptionsEdit'>${escapeHtml((poll.options||[]).join('\n'))}</textarea></label><label>Open date<input id='pollStartDateEdit' type='date' value='${escapeHtml(poll.startDate||'')}'></label><label>Close date<input id='pollEndDateEdit' type='date' value='${escapeHtml(poll.endDate||'')}'></label><label class='inline-check'><input id='pollAnonymousEdit' type='checkbox' ${poll.anonymous?'checked':''}> Store responses anonymously</label><label class='inline-check'><input id='pollShowResultsEdit' type='checkbox' ${poll.showResults!==false?'checked':''}> Show results to residents</label><div class='drawer-actions'><button id='savePoll'>Save Poll</button><button class='secondary' id='cancelDrawer'>Cancel</button></div></div>`,{afterOpen(drawer){drawer.querySelector('#cancelDrawer').onclick=closeAdminDrawer; drawer.querySelector('#savePoll').onclick=async()=>{const answerType=drawer.querySelector('#pollAnswerTypeEdit').value; const options=drawer.querySelector('#pollOptionsEdit').value.split('\n').map(o=>BWC.sanitize(o,120)).filter(Boolean); const next={...poll,question:BWC.sanitize(drawer.querySelector('#pollQuestionEdit').value,220),answerType,options,startDate:drawer.querySelector('#pollStartDateEdit').value,endDate:drawer.querySelector('#pollEndDateEdit').value,anonymous:drawer.querySelector('#pollAnonymousEdit').checked,showResults:drawer.querySelector('#pollShowResultsEdit').checked,status:poll.status||'Open',createdAt:poll.createdAt||new Date().toISOString()}; if(!next.question) return alert('Add a poll question.'); if(answerType!=='free-text'&&options.length<2) return alert('Add at least two answer options.'); if(id) polls[index]=next; else polls.unshift(next); await saveAdminChange('admin.poll.saved',next.question,drawPolls); closeAdminDrawer(); setMessage('adminToast','Poll saved.','success');};}});
   };
-  box.querySelectorAll('[data-save-poll-status]').forEach(btn=>btn.onclick=async()=>{
-    const poll=polls.find(p=>p.id===btn.dataset.savePollStatus);
-    if(!poll) return;
-    poll.status=box.querySelector(`[data-poll-status="${poll.id}"]`).value;
-    await saveAdminChange('admin.poll.status',`${poll.question}: ${poll.status}`,drawPolls);
-  });
-  box.querySelectorAll('[data-remove-poll]').forEach(btn=>btn.onclick=async()=>{
-    const index=polls.findIndex(p=>p.id===btn.dataset.removePoll);
-    const poll=polls[index];
-    if(index<0||!await confirmDanger('Remove poll',`Remove "${poll.question}" and its responses?`,'Remove Poll')) return;
-    polls.splice(index,1);
-    workingData.portal.pollResponses=(workingData.portal.pollResponses||[]).filter(response=>response.pollId!==poll.id);
-    await saveAdminChange('admin.poll.removed',poll.question,drawPolls);
-  });
+  document.getElementById('addPoll').onclick=()=>openPoll();
+  box.querySelectorAll('[data-edit]').forEach(btn=>btn.onclick=()=>openPoll(btn.dataset.edit));
+  box.querySelectorAll('[data-results]').forEach(btn=>btn.onclick=()=>{const poll=polls.find(p=>p.id===btn.dataset.results); const count=responses.filter(r=>r.pollId===poll.id).length; openAdminDrawer('Poll Results',`<p><strong>${escapeHtml(poll.question)}</strong></p><p>${count} responses recorded.</p>`);});
+  box.querySelectorAll('[data-close]').forEach(btn=>btn.onclick=async()=>{const poll=polls.find(p=>p.id===btn.dataset.close); if(poll){poll.status='Closed'; await saveAdminChange('admin.poll.closed',poll.question,drawPolls);}});
 }
 
 function drawBulletins(){
@@ -480,19 +412,15 @@ function drawBulletins(){
   const bulletins=workingData.portal.bulletins||[];
   const categories=['Announcements','Reminders','Lost & Found','For Sale','Social'];
   const categoryOptions=categories.map(category=>`<option>${escapeHtml(category)}</option>`).join('');
-  box.innerHTML=`<div class='doc-admin-form'><input id='bulletinTitle' placeholder='Bulletin title'><select id='bulletinCategory'>${categoryOptions}</select><textarea id='bulletinBody' placeholder='Bulletin body'></textarea><div class='grid two'><input id='bulletinStartDate' type='date'><input id='bulletinExpiresAt' type='date'></div><input id='bulletinAttachmentUrl' placeholder='Optional attachment URL'><button id='addBulletin'>Publish Bulletin</button></div>${bulletins.map(b=>`<div class='item'><div class='request-admin-head'><strong>${escapeHtml(b.title)}</strong><span>${escapeHtml(b.category||'Announcements')}</span><b>${escapeHtml(b.status||'Published')}</b></div><small>${escapeHtml(b.startDate||'')} to ${escapeHtml(b.expiresAt||'No expiry')} - ${escapeHtml(b.authorName||'Admin')}</small><p>${escapeHtml(b.body||'')}</p><button data-publish-bulletin='${escapeHtml(b.id)}'>Publish</button><button class='secondary' data-reject-bulletin='${escapeHtml(b.id)}'>Reject</button><button class='secondary danger' data-remove-bulletin='${escapeHtml(b.id)}'>Remove</button></div>`).join('')||'<p class="help">No bulletin board posts yet.</p>'}`;
-  document.getElementById('addBulletin').onclick=async()=>{
-    const title=BWC.sanitize(document.getElementById('bulletinTitle').value,140);
-    const body=BWC.sanitize(document.getElementById('bulletinBody').value,1600);
-    if(!title||!body) return alert('Add a title and body.');
-    const bulletin={id:uid('blt'),title,category:document.getElementById('bulletinCategory').value,body,authorId:adminActor,authorName:'HOA Board',status:'Published',startDate:document.getElementById('bulletinStartDate').value||new Date().toISOString().slice(0,10),expiresAt:document.getElementById('bulletinExpiresAt').value,attachmentName:'',attachmentUrl:BWC.sanitize(document.getElementById('bulletinAttachmentUrl').value,500),createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()};
-    bulletins.unshift(bulletin);
-    (workingData.portal.residents||[]).filter(r=>r.status==='active'&&r.email&&r.notificationPreferences?.bulletins!==false).forEach(r=>workingData.portal.notifications.unshift({id:uid('ntf'),type:'bulletin',residentId:r.id,email:r.email,subject:bulletin.title,message:'New bulletin board post queued for notification.',status:'queued',createdAt:new Date().toISOString()}));
-    await saveAdminChange('admin.bulletin.published',title,drawBulletins);
+  box.innerHTML=`<div class='list-toolbar'><button id='addBulletin'>+ Create Bulletin</button></div><div class='admin-list'>${bulletins.map(b=>`<article class='summary-row'><div><strong>${escapeHtml(b.title)}</strong><p>${escapeHtml(b.category||'Announcements')} - <span class='status-pill'>${escapeHtml(b.status||'Published')}</span></p><small>Expires ${escapeHtml(b.expiresAt||'No expiry')}</small></div><div class='list-actions'><button class='secondary' data-view='${escapeHtml(b.id)}'>View</button><button data-edit='${escapeHtml(b.id)}'>Edit</button><button class='link-danger' data-remove='${escapeHtml(b.id)}'>Archive</button></div></article>`).join('')||'<p class="help">No bulletin board posts yet.</p>'}</div>`;
+  const openBulletin=(id=null,view=false)=>{
+    const index=bulletins.findIndex(b=>b.id===id); const b=id?clone(bulletins[index]):{id:uid('blt'),title:'',category:'Announcements',body:'',status:'Published',startDate:new Date().toISOString().slice(0,10),expiresAt:'',attachmentUrl:''};
+    openAdminDrawer(id?view?'View Bulletin':'Edit Bulletin':'Create Bulletin',`<div class='drawer-form ${view?'view-mode':''}'><label>Title<input id='bulletinTitleEdit' value='${escapeHtml(b.title||'')}' ${view?'readonly':''}></label><label>Category<select id='bulletinCategoryEdit' ${view?'disabled':''}>${categoryOptions}</select></label><label>Body<textarea id='bulletinBodyEdit' ${view?'readonly':''}>${escapeHtml(b.body||'')}</textarea></label><label>Publish date<input id='bulletinStartDateEdit' type='date' value='${escapeHtml(b.startDate||'')}' ${view?'readonly':''}></label><label>Expiration date<input id='bulletinExpiresAtEdit' type='date' value='${escapeHtml(b.expiresAt||'')}' ${view?'readonly':''}></label><label>Attachment URL<input id='bulletinAttachmentUrlEdit' value='${escapeHtml(b.attachmentUrl||'')}' ${view?'readonly':''}></label>${view?'':`<div class='drawer-actions'><button id='saveBulletin'>Publish Bulletin</button><button class='secondary' id='cancelDrawer'>Cancel</button></div>`}</div>`,{afterOpen(drawer){drawer.querySelector('#bulletinCategoryEdit').value=b.category||'Announcements'; drawer.querySelector('#cancelDrawer')&&(drawer.querySelector('#cancelDrawer').onclick=closeAdminDrawer); drawer.querySelector('#saveBulletin')&&(drawer.querySelector('#saveBulletin').onclick=async()=>{const next={...b,title:BWC.sanitize(drawer.querySelector('#bulletinTitleEdit').value,140),category:drawer.querySelector('#bulletinCategoryEdit').value,body:BWC.sanitize(drawer.querySelector('#bulletinBodyEdit').value,1600),authorId:adminActor,authorName:'HOA Board',status:'Published',startDate:drawer.querySelector('#bulletinStartDateEdit').value||new Date().toISOString().slice(0,10),expiresAt:drawer.querySelector('#bulletinExpiresAtEdit').value,attachmentUrl:BWC.sanitize(drawer.querySelector('#bulletinAttachmentUrlEdit').value,500),updatedAt:new Date().toISOString(),createdAt:b.createdAt||new Date().toISOString()}; if(!next.title||!next.body) return alert('Add a title and body.'); if(id) bulletins[index]=next; else bulletins.unshift(next); await saveAdminChange('admin.bulletin.published',next.title,drawBulletins); drawDashboardCounts(); closeAdminDrawer(); setMessage('adminToast','Bulletin saved.','success');});}});
   };
-  box.querySelectorAll('[data-publish-bulletin]').forEach(btn=>btn.onclick=async()=>{const bulletin=bulletins.find(b=>b.id===btn.dataset.publishBulletin); if(!bulletin) return; bulletin.status='Published'; bulletin.updatedAt=new Date().toISOString(); await saveAdminChange('admin.bulletin.approved',bulletin.title,drawBulletins); drawDashboardCounts();});
-  box.querySelectorAll('[data-reject-bulletin]').forEach(btn=>btn.onclick=async()=>{const bulletin=bulletins.find(b=>b.id===btn.dataset.rejectBulletin); if(!bulletin) return; bulletin.status='Rejected'; bulletin.updatedAt=new Date().toISOString(); await saveAdminChange('admin.bulletin.rejected',bulletin.title,drawBulletins); drawDashboardCounts();});
-  box.querySelectorAll('[data-remove-bulletin]').forEach(btn=>btn.onclick=async()=>{const index=bulletins.findIndex(b=>b.id===btn.dataset.removeBulletin); const bulletin=bulletins[index]; if(index<0||!await confirmDanger('Remove bulletin',`Remove "${bulletin.title}"?`,'Remove Bulletin')) return; bulletins.splice(index,1); await saveAdminChange('admin.bulletin.removed',bulletin.title,drawBulletins); drawDashboardCounts();});
+  document.getElementById('addBulletin').onclick=()=>openBulletin();
+  box.querySelectorAll('[data-view]').forEach(btn=>btn.onclick=()=>openBulletin(btn.dataset.view,true));
+  box.querySelectorAll('[data-edit]').forEach(btn=>btn.onclick=()=>openBulletin(btn.dataset.edit));
+  box.querySelectorAll('[data-remove]').forEach(btn=>btn.onclick=async()=>{const b=bulletins.find(item=>item.id===btn.dataset.remove); if(b&&await confirmDanger('Archive bulletin',`Archive "${b.title}"?`,'Archive')){b.status='Archived'; await saveAdminChange('admin.bulletin.archived',b.title,drawBulletins);}});
 }
 
 function drawResidentApprovals(){
