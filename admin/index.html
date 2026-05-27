@@ -1,4 +1,4 @@
-<!doctype html><html><head><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'><title>Admin Portal</title><link rel='stylesheet' href='/assets/hoa-style.css'></head><body><nav class="site-top" aria-label="Primary navigation">
+<!doctype html><html><head><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'><title>Admin Portal</title><link rel='stylesheet' href='/assets/hoa-style.css'></head><body class='admin-page'><nav class="site-top" aria-label="Primary navigation">
   <div class="site-top-inner">
     <a class="site-home" href="/" aria-label="Home">&#8962;</a>
     <div class="site-menu">
@@ -20,9 +20,10 @@
     <a class="resident-login-link" href="/resident-portal/">Resident Login</a>
     <div class="site-session"><span id="siteTopUser"></span><button id="siteTopLogout" type="button">Logout</button></div>
   </div>
-</nav><div class='container'><h1>Admin Portal</h1><p class='help'>Designed for non-technical updates. Use simple forms below and click <strong>Save All Changes</strong>.</p><div id='auth' class='card'><p>Enter admin PIN</p><div id='adminLoginMsg' class='form-message' role='status'></div><input id='pin' type='password'><button id='login'>Login</button></div><div id='dash' style='display:none'></div></div><script src='/assets/hoa-app.js'></script><script>
+</nav><div class='container admin-login-wrap'><h1>Admin Portal</h1><p class='help'>Board workspace for resident approvals, portal content, requests, documents, communications, and map data.</p><div id='auth' class='card'><p>Enter admin PIN</p><div id='adminLoginMsg' class='form-message' role='status'></div><input id='pin' type='password'><button id='login'>Login</button></div></div><div id='dash' class='admin-shell' style='display:none'></div><script src='/assets/hoa-app.js'></script><script>
 const auth=document.getElementById('auth'),dash=document.getElementById('dash');
 let workingData=null;
+let currentAdminModule='dashboard';
 
 const blank={
   board:{role:'',name:'',description:''},
@@ -49,12 +50,48 @@ function ensureDefaults(d){
 
 const docCategories=['Governing Documents','Architectural Review','Financial / Assessments','Meeting Minutes','Projects','Forms'];
 const adminActor='pin-admin';
+const adminNavItems=[
+  ['dashboard','Dashboard'],
+  ['residents','Residents'],
+  ['directory','Directory'],
+  ['requests','Requests'],
+  ['events','Events'],
+  ['projects','Projects'],
+  ['documents','Documents'],
+  ['communications','Communications'],
+  ['map-lots','Map Lots'],
+  ['settings','Settings / Backup']
+];
 
 async function saveAdminChange(action,details,redraw){
   BWC.logAction(workingData,adminActor,action,details||'');
   const synced=await BWC.saveData(workingData);
   if(typeof redraw==='function') redraw();
   if(!synced) console.warn('Saved locally; remote Google Sheets sync did not confirm.');
+  return synced;
+}
+
+function adminStatus(state='saved',text='Saved'){
+  return `<span class='save-chip ${state}' data-save-chip>${escapeHtml(text)}</span>`;
+}
+function setCardStatus(card,state,text){
+  const chip=card&&card.querySelector('[data-save-chip]');
+  if(!chip) return;
+  chip.className=`save-chip ${state}`;
+  chip.textContent=text;
+}
+function markDirtyFromInputs(scope){
+  scope.querySelectorAll('input,textarea,select').forEach(input=>{
+    if(input.type==='file') return;
+    input.addEventListener('input',()=>setCardStatus(input.closest('.admin-record-card,.admin-edit-row,.doc-admin-form'),'unsaved','Unsaved changes'));
+    input.addEventListener('change',()=>setCardStatus(input.closest('.admin-record-card,.admin-edit-row,.doc-admin-form'),'unsaved','Unsaved changes'));
+  });
+}
+async function saveFromButton(button,action,details,redraw){
+  const card=button.closest('.admin-record-card,.admin-edit-row,.doc-admin-form,.item');
+  setCardStatus(card,'saving','Saving...');
+  const synced=await saveAdminChange(action,details,redraw);
+  if(!redraw) setCardStatus(card,synced?'saved':'failed',synced?'Saved':'Save failed');
   return synced;
 }
 
@@ -74,12 +111,13 @@ function drawDashboardCounts(){
   if(!box) return;
   const pendingResidents=(workingData.portal.residents||[]).filter(r=>r.status==='pending').length;
   box.innerHTML=`
-    <div class='dashboard-count'><strong>${pendingResidents}</strong><span>Pending residents</span></div>
-    <div class='dashboard-count'><strong>${pendingRequestCount('architectural')}</strong><span>Pending architectural requests</span></div>
-    <div class='dashboard-count'><strong>${pendingRequestCount('maintenance')}</strong><span>Pending maintenance requests</span></div>
-    <div class='dashboard-count'><strong>${(workingData.portal.bulletins||[]).filter(b=>b.status==='Pending Review').length}</strong><span>Pending bulletins</span></div>
-    <div class='dashboard-count'><strong>${(workingData.portal.forumPosts||[]).filter(p=>p.reported).length}</strong><span>Reported forum posts</span></div>
-    <div class='dashboard-count'><strong>${(workingData.portal.polls||[]).filter(p=>p.status!=='Archived').length}</strong><span>Active polls</span></div>`;
+    <button class='dashboard-count' data-jump='residents'><strong>${pendingResidents}</strong><span>Pending residents</span></button>
+    <button class='dashboard-count' data-jump='requests'><strong>${pendingRequestCount('architectural')}</strong><span>Pending architectural requests</span></button>
+    <button class='dashboard-count' data-jump='requests'><strong>${pendingRequestCount('maintenance')}</strong><span>Pending maintenance requests</span></button>
+    <button class='dashboard-count' data-jump='communications'><strong>${(workingData.portal.bulletins||[]).filter(b=>b.status==='Pending Review').length}</strong><span>Pending bulletins</span></button>
+    <button class='dashboard-count' data-jump='communications'><strong>${(workingData.portal.forumPosts||[]).filter(p=>p.reported).length}</strong><span>Reported forum posts</span></button>
+    <button class='dashboard-count' data-jump='communications'><strong>${(workingData.portal.polls||[]).filter(p=>p.status!=='Archived').length}</strong><span>Active polls</span></button>`;
+  box.querySelectorAll('[data-jump]').forEach(button=>button.onclick=()=>switchAdminModule(button.dataset.jump));
 }
 
 async function handleFileToDataUrl(input,cb){
@@ -92,38 +130,36 @@ async function handleFileToDataUrl(input,cb){
 async function render(){
   workingData=await BWC.getData(); ensureDefaults(workingData);
   dash.innerHTML=`
-    <div class='card'>
-      <h2>Publish Changes</h2>
-      <p class='help'>Save regularly while editing. Export creates a backup file.</p>
-      <p><a class='buttonlike secondary' href='/resident-portal/'>Open Resident Portal</a></p>
-      <div class='grid two'>
-        <button id='saveAll'>Save All Changes</button>
-        <button id='resetData' class='secondary'>Reload Without Saving</button>
-        <button id='exportBtn'>Export Backup (.json)</button>
-        <label class='buttonlike secondary'>Import Backup (.json)<input id='importInput' type='file' accept='application/json' hidden></label>
-      </div>
-    </div>
-    <div class='card'><h2>Dashboard Counts</h2><div id='dashboardCounts' class='dashboard-counts'></div></div>
-    <div class='card approval-card'><h2>Resident Directory Management</h2><p class='help'>Approve new residents, remove directory listings, or remove resident access entirely.</p><div id='residentApprovals'></div></div>
-    <div class='card'><h2>Architectural & Resident Requests</h2><p class='help'>Review submitted requests, update status, and add notes residents can see in their portal.</p><div id='requestReview'></div></div>
-    <div class='card'><h2>Forum Moderation</h2><p class='help'>Lock threads, remove reported posts, and keep a moderation audit trail.</p><div id='forumModeration'></div></div>
-    <div class='card'><h2>Newsletter & Announcement System</h2><p class='help'>Draft newsletters for opted-in residents. Sending is logged here; external delivery can connect to SendGrid or Mailchimp next.</p><div id='newsletterEditor'></div></div>
-    <div class='card'><h2>Polls & Surveys</h2><p class='help'>Create resident polls, surveys, date windows, and result visibility.</p><div id='pollsEditor'></div></div>
-    <div class='card'><h2>Digital Bulletin Board</h2><p class='help'>Publish board posts and review resident-submitted posts.</p><div id='bulletinsEditor'></div></div>
-    <div class='card'><h2>Portal Document Library</h2><p class='help'>Add resident-only document links by category. File upload can be added once permanent storage is selected.</p><div id='documentsEditor'></div></div>
-    <div class='card'><h2>About Page</h2><div id='aboutEditor'></div></div>
-    <div class='card'><h2>Portal Upcoming Events</h2><p class='help'>Resident-only event details and RSVPs display inside the Resident Portal.</p><div id='eventsEditor'></div></div>
-    <div class='card'><h2>Portal Neighborhood Projects</h2><p class='help'>Resident-only project updates and project documents display inside the Resident Portal.</p><div id='projectsEditor'></div></div>
-    <div class='card'><h2>Helpful Resources</h2><div id='resourcesEditor'></div></div>
-    <div class='card'><h2>Neighborhood Map Lots</h2><div id='lotsEditor'></div></div>
-    <div class='card'><h2>Resident Submissions</h2><p>Contacts: ${workingData.contacts.length} | Subscribers: ${workingData.subscribers.length} | RSVPs: ${workingData.rsvps.length}</p></div>`;
+    <aside class='admin-sidebar' aria-label='Admin workspace navigation'>
+      <div class='admin-brand'><strong>Bentwood Creek</strong><span>HOA Portal</span></div>
+      <button id='adminMenuToggle' class='secondary admin-menu-toggle' type='button'>Menu</button>
+      <nav id='adminNav'>${adminNavItems.map(([id,label])=>`<button type='button' class='admin-nav-link ${id===currentAdminModule?'active':''}' data-admin-module='${id}'>${label}</button>`).join('')}</nav>
+    </aside>
+    <main class='admin-main'>
+      <header class='admin-app-header'>
+        <div><h1>Bentwood Creek HOA Portal</h1><p>Admin Workspace</p></div>
+        <div class='admin-header-actions'><span class='role-pill'>Board Admin</span><span class='notice-dot' aria-label='Notifications placeholder'></span><button id='adminLogout' class='secondary' type='button'>Logout</button></div>
+      </header>
+      <section id='module-dashboard' class='admin-module'><div class='admin-section-head'><div><h2>Dashboard</h2><p class='help'>What needs attention today.</p></div></div><div id='dashboardCounts' class='dashboard-counts clickable-counts'></div><div class='admin-dashboard-grid'><div class='card'><h3>Quick Actions</h3><div class='quick-actions'><button data-jump='communications'>Add Announcement</button><button data-jump='events'>Add Event</button><button data-jump='documents'>Add Document</button><button data-jump='communications'>Publish Bulletin</button><button data-jump='communications'>Create Poll</button><button data-jump='residents'>Review Pending Resident</button></div></div><div class='card'><h3>Recent Activity</h3><div id='recentActivity'></div></div></div></section>
+      <section id='module-residents' class='admin-module'><div class='admin-section-head'><div><h2>Residents</h2><p class='help'>Approve access, manage account status, and review household details.</p></div><input id='residentSearch' type='search' placeholder='Search name, address, email, or lot'></div><div id='residentApprovals'></div></section>
+      <section id='module-directory' class='admin-module'><div class='admin-section-head'><div><h2>Directory</h2><p class='help'>Manage who appears in the resident directory.</p></div></div><div id='directoryManagement'></div></section>
+      <section id='module-requests' class='admin-module'><div class='admin-section-head'><div><h2>Requests</h2><p class='help'>Review architectural, maintenance, and resident requests.</p></div><select id='requestFilter'><option value='all'>All requests</option><option>Architectural Change</option><option>Maintenance</option><option>Submitted</option><option>Pending</option><option>Approved</option><option>Denied</option></select></div><div id='requestReview'></div></section>
+      <section id='module-events' class='admin-module'><div class='admin-section-head'><div><h2>Events</h2><p class='help'>Each event saves independently.</p></div><button id='addEvent'>+ Add Event</button></div><div id='eventsEditor'></div></section>
+      <section id='module-projects' class='admin-module'><div class='admin-section-head'><div><h2>Projects</h2><p class='help'>Project cards include related document links.</p></div><button id='addProject'>+ Add Project</button></div><div id='projectsEditor'></div></section>
+      <section id='module-documents' class='admin-module'><div class='admin-section-head'><div><h2>Documents</h2><p class='help'>Resident-only documents saved through the existing backend.</p></div></div><div id='documentsEditor'></div></section>
+      <section id='module-communications' class='admin-module'><div class='admin-section-head'><div><h2>Communications</h2><p class='help'>Newsletters, polls, bulletins, forum moderation, board members, committees, and helpful resources.</p></div></div><div class='admin-subgrid'><div class='card'><h3>Board Members & Committees</h3><div id='aboutEditor'></div></div><div class='card'><h3>Newsletter & Announcement System</h3><div id='newsletterEditor'></div></div><div class='card'><h3>Polls & Surveys</h3><div id='pollsEditor'></div></div><div class='card'><h3>Digital Bulletin Board</h3><div id='bulletinsEditor'></div></div><div class='card'><h3>Forum Moderation</h3><div id='forumModeration'></div></div><div class='card'><h3>Helpful Resources</h3><div id='resourcesEditor'></div></div></div></section>
+      <section id='module-map-lots' class='admin-module'><div class='admin-section-head'><div><h2>Map Lots</h2><p class='help'>Search and maintain parcel data used by the neighborhood map.</p></div><input id='lotSearchAdmin' type='search' placeholder='Search lot or address'></div><div id='lotsEditor'></div></section>
+      <section id='module-settings' class='admin-module'><div class='admin-section-head'><div><h2>Settings / Backup</h2><p class='help'>Export or import the current Google Sheets-backed data set.</p></div></div><div class='card'><div class='grid two'><button id='resetData' class='secondary'>Reload From Backend</button><button id='exportBtn'>Export Backup (.json)</button><label class='buttonlike secondary'>Import Backup (.json)<input id='importInput' type='file' accept='application/json' hidden></label><a class='buttonlike secondary' href='/resident-portal/'>Open Resident Portal</a></div><p id='settingsStatus' class='help'>Record edits save in their own sections. There is no separate Save All step.</p></div><div class='card'><h3>Resident Submissions</h3><p>Contacts: ${workingData.contacts.length} | Subscribers: ${workingData.subscribers.length} | RSVPs: ${workingData.rsvps.length}</p></div></section>
+    </main>`;
 
   drawDashboardCounts(); drawAbout(); drawEvents(); drawProjects(); drawResources(); drawLots(); drawDocuments(); drawResidentApprovals(); drawRequests(); drawForumModeration(); drawNewsletters(); drawPolls(); drawBulletins();
+  drawRecentActivity();
+  switchAdminModule(currentAdminModule,false);
+  wireAdminShell();
   wireGlobalActions();
 }
 
 function wireGlobalActions(){
-  document.getElementById('saveAll').onclick=async()=>{await saveAdminChange('admin.bulk.save','Manual Save All Changes');alert('All changes saved.');};
   document.getElementById('resetData').onclick=()=>render();
   document.getElementById('exportBtn').onclick=()=>{
     const a=document.createElement('a');
@@ -133,25 +169,53 @@ function wireGlobalActions(){
   document.getElementById('importInput').onchange=async(e)=>{
     const file=e.target.files[0]; if(!file) return;
     const text=await file.text();
-    try{const parsed=JSON.parse(text); ensureDefaults(parsed); workingData=parsed; BWC.logAction(workingData,adminActor,'admin.backup.imported',file.name); alert('Backup imported. Remember to click Save All Changes.'); renderWithCurrent();}
+    try{const parsed=JSON.parse(text); ensureDefaults(parsed); workingData=parsed; BWC.logAction(workingData,adminActor,'admin.backup.imported',file.name); await BWC.saveData(workingData); alert('Backup imported and saved.'); render();}
     catch{alert('That file is not valid JSON.');}
   };
 }
 function renderWithCurrent(){ drawDashboardCounts(); drawAbout(); drawEvents(); drawProjects(); drawResources(); drawLots(); drawDocuments(); drawResidentApprovals(); drawRequests(); drawForumModeration(); drawNewsletters(); drawPolls(); drawBulletins(); }
 
+function switchAdminModule(id,updateHash=true){
+  currentAdminModule=adminNavItems.some(([key])=>key===id)?id:'dashboard';
+  document.querySelectorAll('.admin-module').forEach(module=>module.classList.toggle('active',module.id===`module-${currentAdminModule}`));
+  document.querySelectorAll('[data-admin-module]').forEach(button=>button.classList.toggle('active',button.dataset.adminModule===currentAdminModule));
+  if(updateHash&&location.hash!==`#${currentAdminModule}`) history.replaceState(null,'',`#${currentAdminModule}`);
+}
+function wireAdminShell(){
+  document.querySelectorAll('[data-admin-module]').forEach(button=>button.onclick=()=>switchAdminModule(button.dataset.adminModule));
+  document.querySelectorAll('[data-jump]').forEach(button=>button.onclick=()=>switchAdminModule(button.dataset.jump));
+  document.getElementById('adminLogout').onclick=()=>{dash.style.display='none';auth.style.display='block';document.querySelector('.admin-login-wrap').style.display='block';};
+  document.getElementById('adminMenuToggle').onclick=()=>dash.classList.toggle('nav-open');
+  const hash=location.hash.replace('#','');
+  if(hash) switchAdminModule(hash,false);
+}
+function drawRecentActivity(){
+  const box=document.getElementById('recentActivity');
+  if(!box) return;
+  const logs=(workingData.portal.auditLogs||[]).slice(0,8);
+  box.innerHTML=logs.length?`<ul class='activity-list'>${logs.map(log=>`<li><strong>${escapeHtml(log.action)}</strong><span>${escapeHtml(log.details||'')}</span><small>${escapeHtml((log.timestamp||'').slice(0,16).replace('T',' '))}</small></li>`).join('')}</ul>`:'<p class="help">No recent activity yet.</p>';
+}
+
 function drawAbout(){
   const box=document.getElementById('aboutEditor');
-  box.innerHTML=`<h3>Board Members</h3>${workingData.about.boardMembers.map((m,i)=>`<div class='item'><input data-k='role' data-i='${i}' data-g='board' value='${escapeHtml(m.role)}' placeholder='Role'><input data-k='name' data-i='${i}' data-g='board' value='${escapeHtml(m.name)}' placeholder='Name'><textarea data-k='description' data-i='${i}' data-g='board' placeholder='Description'>${escapeHtml(m.description)}</textarea><button class='secondary danger' data-del='board' data-i='${i}'>Remove</button></div>`).join('')}<button id='addBoard'>+ Add Board Member</button><h3>Committees</h3>${workingData.about.committees.map((c,i)=>`<div class='item'><input data-k='name' data-i='${i}' data-g='committee' value='${escapeHtml(c.name)}' placeholder='Committee name'><textarea data-k='description' data-i='${i}' data-g='committee' placeholder='Description'>${escapeHtml(c.description)}</textarea><button class='secondary danger' data-del='committee' data-i='${i}'>Remove</button></div>`).join('')}<button id='addCommittee'>+ Add Committee</button>`;
+  box.innerHTML=`<div class='about-admin-grid'><section><div class='mini-section-head'><h4>Board Members</h4><button id='addBoard' type='button'>+ Add Board Member</button></div>${workingData.about.boardMembers.map((m,i)=>`<article class='admin-record-card'><div class='record-card-head'><strong>${escapeHtml(m.role||'Board Member')}</strong>${adminStatus()}</div><input data-k='role' data-i='${i}' data-g='board' value='${escapeHtml(m.role)}' placeholder='Role / title'><input data-k='name' data-i='${i}' data-g='board' value='${escapeHtml(m.name)}' placeholder='Name'><textarea data-k='description' data-i='${i}' data-g='board' placeholder='Short biography or responsibility'>${escapeHtml(m.description)}</textarea><div class='record-actions'><button data-save='board' data-i='${i}'>Save Member</button><button class='secondary' data-cancel-record>Cancel</button><button class='secondary danger' data-del='board' data-i='${i}'>Remove</button></div></article>`).join('')||'<p class="help">No board members yet.</p>'}</section><section><div class='mini-section-head'><h4>Committees</h4><button id='addCommittee' type='button'>+ Add Committee</button></div>${workingData.about.committees.map((c,i)=>`<article class='admin-record-card'><div class='record-card-head'><strong>${escapeHtml(c.name||'Committee')}</strong>${adminStatus()}</div><input data-k='name' data-i='${i}' data-g='committee' value='${escapeHtml(c.name)}' placeholder='Committee name'><textarea data-k='description' data-i='${i}' data-g='committee' placeholder='Description'>${escapeHtml(c.description)}</textarea><div class='record-actions'><button data-save='committee' data-i='${i}'>Save Committee</button><button class='secondary' data-cancel-record>Cancel</button><button class='secondary danger' data-del='committee' data-i='${i}'>Remove</button></div></article>`).join('')||'<p class="help">No committees yet.</p>'}</section></div>`;
   box.querySelectorAll('[data-g]').forEach(el=>el.oninput=(e)=>{const {g,i,k}=e.target.dataset; const v=e.target.value; (g==='board'?workingData.about.boardMembers:workingData.about.committees)[+i][k]=v;});
+  markDirtyFromInputs(box);
+  box.querySelectorAll('[data-save]').forEach(el=>el.onclick=async()=>{const i=+el.dataset.i; const type=el.dataset.save; const row=type==='board'?workingData.about.boardMembers[i]:workingData.about.committees[i]; await saveFromButton(el,`admin.${type}.saved`,row?.name||row?.role||type,drawAbout);});
+  box.querySelectorAll('[data-cancel-record]').forEach(el=>el.onclick=()=>render());
   box.querySelectorAll('[data-del]').forEach(el=>el.onclick=async()=>{const i=+el.dataset.i; if(el.dataset.del==='board'){const row=workingData.about.boardMembers[i]; workingData.about.boardMembers.splice(i,1); await saveAdminChange('admin.board.removed',row?.name||row?.role||'board member',drawAbout);} else {const row=workingData.about.committees[i]; workingData.about.committees.splice(i,1); await saveAdminChange('admin.committee.removed',row?.name||'committee',drawAbout);}});
-  document.getElementById('addBoard').onclick=async()=>{workingData.about.boardMembers.push(clone(blank.board));await saveAdminChange('admin.board.added','board member',drawAbout);};
-  document.getElementById('addCommittee').onclick=async()=>{workingData.about.committees.push(clone(blank.committee));await saveAdminChange('admin.committee.added','committee',drawAbout);};
+  document.getElementById('addBoard').onclick=()=>{workingData.about.boardMembers.unshift(clone(blank.board));drawAbout(); const first=box.querySelector('.admin-record-card'); if(first) setCardStatus(first,'unsaved','Unsaved changes');};
+  document.getElementById('addCommittee').onclick=()=>{workingData.about.committees.unshift(clone(blank.committee));drawAbout(); const first=box.querySelectorAll('.admin-record-card')[workingData.about.boardMembers.length]; if(first) setCardStatus(first,'unsaved','Unsaved changes');};
 }
 
 function drawEvents(){
   const box=document.getElementById('eventsEditor');
-  box.innerHTML=workingData.events.map((ev,i)=>`<div class='item'><input value='${escapeHtml(ev.title)}' data-i='${i}' data-k='title' placeholder='Event title'><input type='datetime-local' value='${escapeHtml(ev.datetime||'')}' data-i='${i}' data-k='datetime'><input value='${escapeHtml(ev.location)}' data-i='${i}' data-k='location' placeholder='Location'><textarea data-i='${i}' data-k='description' placeholder='Description'>${escapeHtml(ev.description)}</textarea><input value='${escapeHtml(ev.rsvpLink||'#')}' data-i='${i}' data-k='rsvpLink' placeholder='RSVP link'><label>Event image URL</label><input value='${escapeHtml(ev.image||'')}' data-i='${i}' data-k='image' placeholder='/wp-content/uploads/...'><label class='buttonlike'>Upload Event Image<input type='file' accept='image/*' data-upload='event' data-i='${i}' hidden></label>${ev.image?`<img class='hero' src='${escapeHtml(BWC.normalizeAssetUrl(ev.image))}' alt='Preview'>`:''}<button class='secondary danger' data-del='${i}'>Remove Event</button></div>`).join('')+"<button id='addEvent'>+ Add Event</button>";
+  box.innerHTML=workingData.events.map((ev,i)=>`<article class='admin-record-card event-card'><div class='record-card-head'><strong>${escapeHtml(ev.title||'New Event')}</strong>${adminStatus()}</div>${ev.image?`<img class='admin-thumb' src='${escapeHtml(BWC.normalizeAssetUrl(ev.image))}' alt='Event preview'>`:''}<input value='${escapeHtml(ev.title)}' data-i='${i}' data-k='title' placeholder='Event title'><input type='datetime-local' value='${escapeHtml(ev.datetime||'')}' data-i='${i}' data-k='datetime'><input value='${escapeHtml(ev.location)}' data-i='${i}' data-k='location' placeholder='Location'><textarea data-i='${i}' data-k='description' placeholder='Description'>${escapeHtml(ev.description)}</textarea><input value='${escapeHtml(ev.rsvpLink||'#')}' data-i='${i}' data-k='rsvpLink' placeholder='RSVP/action link'><input value='${escapeHtml(ev.image||'')}' data-i='${i}' data-k='image' placeholder='Image URL'><label class='buttonlike secondary'>Upload Event Image<input type='file' accept='image/*' data-upload='event' data-i='${i}' hidden></label><div class='record-actions'><button data-save-event='${i}'>Save Event</button><button class='secondary' data-duplicate-event='${i}'>Duplicate</button><button class='secondary' data-cancel-record>Cancel</button><button class='secondary danger' data-del='${i}'>Remove</button></div></article>`).join('')||'<p class="help">No events yet.</p>';
   box.querySelectorAll('[data-k]').forEach(el=>el.oninput=(e)=>{workingData.events[+e.target.dataset.i][e.target.dataset.k]=e.target.value;});
+  markDirtyFromInputs(box);
+  box.querySelectorAll('[data-save-event]').forEach(el=>el.onclick=async()=>{const event=workingData.events[+el.dataset.saveEvent]; await saveFromButton(el,'admin.event.saved',event?.title||event?.id||'event',drawEvents);});
+  box.querySelectorAll('[data-duplicate-event]').forEach(el=>el.onclick=()=>{const event=clone(workingData.events[+el.dataset.duplicateEvent]); event.id=uid('evt'); event.title=`${event.title||'Event'} Copy`; workingData.events.unshift(event); drawEvents(); setCardStatus(box.querySelector('.admin-record-card'),'unsaved','Unsaved changes');});
+  box.querySelectorAll('[data-cancel-record]').forEach(el=>el.onclick=()=>render());
   box.querySelectorAll('[data-del]').forEach(el=>el.onclick=async()=>{
     const event=workingData.events[+el.dataset.del];
     if(!event||!await confirmDanger('Delete event',`Delete "${event.title||'this event'}" from the resident portal events list?`,'Delete Event')) return;
@@ -159,14 +223,17 @@ function drawEvents(){
     await saveAdminChange('admin.event.deleted',event.title||event.id,drawEvents);
   });
   box.querySelectorAll('[data-upload="event"]').forEach(el=>el.onchange=()=>handleFileToDataUrl(el,async(result,name)=>{const row=workingData.events[+el.dataset.i];row.image=result; if(!row.title) row.title=name; await saveAdminChange('admin.event.image.uploaded',row.title||name,drawEvents);}));
-  document.getElementById('addEvent').onclick=async()=>{const item=clone(blank.event);item.id=uid('evt');workingData.events.push(item);await saveAdminChange('admin.event.added',item.id,drawEvents);};
+  document.getElementById('addEvent').onclick=()=>{const item=clone(blank.event);item.id=uid('evt');workingData.events.unshift(item);drawEvents(); setCardStatus(box.querySelector('.admin-record-card'),'unsaved','Unsaved changes');};
 }
 
 function drawProjects(){
   const box=document.getElementById('projectsEditor');
-  box.innerHTML=workingData.projects.map((p,i)=>`<div class='item'><input value='${escapeHtml(p.name)}' data-i='${i}' data-k='name' placeholder='Project name'><select data-i='${i}' data-k='status'><option ${p.status==='Planned'?'selected':''}>Planned</option><option ${p.status==='In Progress'?'selected':''}>In Progress</option><option ${p.status==='Complete'?'selected':''}>Complete</option></select><textarea data-i='${i}' data-k='description' placeholder='Description'>${escapeHtml(p.description)}</textarea><h4>Documents</h4>${(p.documents||[]).map((d,di)=>`<div class='grid two'><input value='${escapeHtml(d.label||'')}' data-i='${i}' data-doc='${di}' data-k='label' placeholder='Document label'><input value='${escapeHtml(d.url||'')}' data-i='${i}' data-doc='${di}' data-k='url' placeholder='Document URL'><button class='secondary danger' data-dropdoc='${i}' data-doc='${di}'>Remove Document</button></div>`).join('')}<label class='buttonlike secondary'>Upload Document<input type='file' data-upload='doc' data-i='${i}' hidden></label><button class='secondary' data-adddoc='${i}'>+ Add Document Link</button><button class='secondary danger' data-delproj='${i}'>Remove Project</button></div>`).join('')+"<button id='addProject'>+ Add Project</button>";
+  box.innerHTML=workingData.projects.map((p,i)=>`<article class='admin-record-card'><div class='record-card-head'><strong>${escapeHtml(p.name||'New Project')}</strong><span class='status-pill'>${escapeHtml(p.status||'Planned')}</span>${adminStatus()}</div><input value='${escapeHtml(p.name)}' data-i='${i}' data-k='name' placeholder='Project name'><select data-i='${i}' data-k='status'><option ${p.status==='Planned'?'selected':''}>Planned</option><option ${p.status==='In Progress'?'selected':''}>In Progress</option><option ${p.status==='Completed'||p.status==='Complete'?'selected':''}>Completed</option><option ${p.status==='On Hold'?'selected':''}>On Hold</option></select><textarea data-i='${i}' data-k='description' placeholder='Project summary'>${escapeHtml(p.description)}</textarea><h4>Documents</h4><div class='project-doc-list'>${(p.documents||[]).map((d,di)=>`<div class='admin-edit-row'><input value='${escapeHtml(d.label||'')}' data-i='${i}' data-doc='${di}' data-k='label' placeholder='Document name'><input value='${escapeHtml(d.url||'')}' data-i='${i}' data-doc='${di}' data-k='url' placeholder='Document URL'><button class='secondary danger' data-dropdoc='${i}' data-doc='${di}'>Remove</button></div>`).join('')||'<p class="help">No project documents yet.</p>'}</div><div class='record-actions'><button data-save-project='${i}'>Save Project</button><button class='secondary' data-adddoc='${i}'>+ Add Document Link</button><label class='buttonlike secondary compact-upload'>Upload Document<input type='file' data-upload='doc' data-i='${i}' hidden></label><button class='secondary' data-cancel-record>Cancel</button><button class='secondary danger' data-delproj='${i}'>Remove Project</button></div></article>`).join('')||'<p class="help">No projects yet.</p>';
   box.querySelectorAll('[data-k]').forEach(el=>el.oninput=(e)=>{const {i,k,doc}=e.target.dataset; if(doc!==undefined){workingData.projects[+i].documents[+doc][k]=e.target.value;} else {workingData.projects[+i][k]=e.target.value;}});
-  box.querySelectorAll('[data-adddoc]').forEach(el=>el.onclick=async()=>{const p=workingData.projects[+el.dataset.adddoc];p.documents=p.documents||[];p.documents.push({label:'',url:''});await saveAdminChange('admin.project.document.added',p.name||p.id,drawProjects);});
+  markDirtyFromInputs(box);
+  box.querySelectorAll('[data-save-project]').forEach(el=>el.onclick=async()=>{const p=workingData.projects[+el.dataset.saveProject]; await saveFromButton(el,'admin.project.saved',p?.name||p?.id||'project',drawProjects);});
+  box.querySelectorAll('[data-cancel-record]').forEach(el=>el.onclick=()=>render());
+  box.querySelectorAll('[data-adddoc]').forEach(el=>el.onclick=()=>{const p=workingData.projects[+el.dataset.adddoc];p.documents=p.documents||[];p.documents.push({label:'',url:''});drawProjects();});
   box.querySelectorAll('[data-dropdoc]').forEach(el=>el.onclick=async()=>{
     const p=workingData.projects[+el.dataset.dropdoc];
     const doc=p&&p.documents?p.documents[+el.dataset.doc]:null;
@@ -181,7 +248,7 @@ function drawProjects(){
     workingData.projects.splice(+el.dataset.delproj,1);
     await saveAdminChange('admin.project.deleted',project.name||project.id,drawProjects);
   });
-  document.getElementById('addProject').onclick=async()=>{const item=clone(blank.project);item.id=uid('prj');workingData.projects.push(item);await saveAdminChange('admin.project.added',item.id,drawProjects);};
+  document.getElementById('addProject').onclick=()=>{const item=clone(blank.project);item.id=uid('prj');workingData.projects.unshift(item);drawProjects(); setCardStatus(box.querySelector('.admin-record-card'),'unsaved','Unsaved changes');};
 }
 
 function drawDocuments(){
@@ -204,11 +271,14 @@ function drawDocuments(){
       ${docCategories.map(category=>{
         const items=docs.filter(doc=>(doc.category||'Forms')===category);
         return `<section class='doc-category'><h3>${escapeHtml(category)} (${items.length})</h3>${items.map(doc=>`
-          <article class='doc-item'>
-            <strong>${escapeHtml(doc.name||'Untitled document')}</strong>
-            ${doc.description?`<p>${escapeHtml(doc.description)}</p>`:''}
-            ${doc.url?`<small>${escapeHtml(doc.url)}</small>`:''}
-            <button class='secondary danger' data-del-portal-doc='${escapeHtml(doc.id)}'>Remove Document</button>
+          <article class='doc-item admin-edit-row'>
+            <input value='${escapeHtml(doc.name||'')}' data-doc-id='${escapeHtml(doc.id)}' data-doc-k='name' placeholder='Document name'>
+            <select data-doc-id='${escapeHtml(doc.id)}' data-doc-k='category'>${docCategories.map(option=>`<option value='${escapeHtml(option)}' ${(doc.category||'Forms')===option?'selected':''}>${escapeHtml(option)}</option>`).join('')}</select>
+            <input value='${escapeHtml(doc.url||'')}' data-doc-id='${escapeHtml(doc.id)}' data-doc-k='url' placeholder='Document URL'>
+            <input value='${escapeHtml(doc.description||'')}' data-doc-id='${escapeHtml(doc.id)}' data-doc-k='description' placeholder='Description'>
+            ${adminStatus()}
+            <button data-save-portal-doc='${escapeHtml(doc.id)}'>Save</button>
+            <button class='secondary danger' data-del-portal-doc='${escapeHtml(doc.id)}'>Remove</button>
           </article>`).join('')||'<p class="help">No documents in this category.</p>'}</section>`;
       }).join('')}
     </div>`;
@@ -222,6 +292,10 @@ function drawDocuments(){
     setMessage('documentMsg','Saving document link...','info');
     await saveAdminChange('admin.document.added',`${category}: ${name}`,drawDocuments);
   };
+  box.querySelectorAll('[data-doc-k]').forEach(el=>el.oninput=e=>{const doc=docs.find(item=>item.id===e.target.dataset.docId); if(doc) doc[e.target.dataset.docK]=e.target.value;});
+  box.querySelectorAll('[data-doc-k]').forEach(el=>el.onchange=e=>{const doc=docs.find(item=>item.id===e.target.dataset.docId); if(doc) doc[e.target.dataset.docK]=e.target.value;});
+  markDirtyFromInputs(box);
+  box.querySelectorAll('[data-save-portal-doc]').forEach(btn=>btn.onclick=async()=>{const doc=docs.find(item=>item.id===btn.dataset.savePortalDoc); await saveFromButton(btn,'admin.document.saved',doc?.name||doc?.id||'document',drawDocuments);});
   box.querySelectorAll('[data-del-portal-doc]').forEach(btn=>btn.onclick=async()=>{
     const index=docs.findIndex(doc=>doc.id===btn.dataset.delPortalDoc);
     const doc=docs[index];
@@ -245,22 +319,29 @@ function drawResources(){
 }
 function drawLots(){
   const box=document.getElementById('lotsEditor');
-  box.innerHTML=workingData.mapLots.map((l,i)=>`<div class='item grid two'><input value='${escapeHtml(l.address)}' data-i='${i}' data-k='address' placeholder='Address'><input value='${escapeHtml(l.lat)}' data-i='${i}' data-k='lat' type='number' step='0.000001' placeholder='Latitude'><input value='${escapeHtml(l.lng)}' data-i='${i}' data-k='lng' type='number' step='0.000001' placeholder='Longitude'><button class='secondary danger' data-del='${i}'>Remove</button></div>`).join('')+"<button id='addLot'>+ Add Lot</button>";
+  box.innerHTML=`<div class='map-lot-list'>${workingData.mapLots.map((l,i)=>`<div class='admin-edit-row map-lot-row' data-lot-row data-keywords='${escapeHtml(`${l.lot||''} ${l.address||''} ${l.parcel||''}`.toLowerCase())}'><input value='${escapeHtml(l.lot||'')}' data-i='${i}' data-k='lot' placeholder='Lot #'><input value='${escapeHtml(l.address)}' data-i='${i}' data-k='address' placeholder='Address'><input value='${escapeHtml(l.parcel||'')}' data-i='${i}' data-k='parcel' placeholder='Parcel'><input value='${escapeHtml(l.phase||'')}' data-i='${i}' data-k='phase' placeholder='Phase'><input value='${escapeHtml(l.lat)}' data-i='${i}' data-k='lat' type='number' step='0.000001' placeholder='Latitude'><input value='${escapeHtml(l.lng)}' data-i='${i}' data-k='lng' type='number' step='0.000001' placeholder='Longitude'><input value='${escapeHtml(l.zillowUrl||'')}' data-i='${i}' data-k='zillowUrl' placeholder='Zillow URL'>${adminStatus()}<button data-save-lot='${i}'>Save</button><button class='secondary' data-cancel-record>Cancel</button><button class='secondary danger' data-del='${i}'>Remove</button></div>`).join('')}</div><button id='addLot'>+ Add Lot</button>`;
   box.querySelectorAll('[data-k]').forEach(el=>el.oninput=(e)=>{const i=+e.target.dataset.i,k=e.target.dataset.k; workingData.mapLots[i][k]=(k==='lat'||k==='lng')?Number(e.target.value):e.target.value;});
+  markDirtyFromInputs(box);
+  box.querySelectorAll('[data-save-lot]').forEach(el=>el.onclick=async()=>{const lot=workingData.mapLots[+el.dataset.saveLot]; await saveFromButton(el,'admin.lot.saved',lot?.address||lot?.lot||'lot',drawLots);});
+  box.querySelectorAll('[data-cancel-record]').forEach(el=>el.onclick=()=>render());
   box.querySelectorAll('[data-del]').forEach(el=>el.onclick=async()=>{
     const lot=workingData.mapLots[+el.dataset.del];
     workingData.mapLots.splice(+el.dataset.del,1);
     await saveAdminChange('admin.lot.removed',lot?.address||lot?.lot||'lot',drawLots);
   });
-  document.getElementById('addLot').onclick=async()=>{const lot=clone(blank.mapLot); lot.id=uid('lot'); workingData.mapLots.push(lot);await saveAdminChange('admin.lot.added',lot.id,drawLots);};
+  document.getElementById('addLot').onclick=()=>{const lot=clone(blank.mapLot); lot.id=uid('lot'); workingData.mapLots.unshift(lot);drawLots(); setCardStatus(box.querySelector('.admin-edit-row'),'unsaved','Unsaved changes');};
+  const search=document.getElementById('lotSearchAdmin');
+  if(search) search.oninput=()=>{const q=search.value.toLowerCase().trim(); box.querySelectorAll('[data-lot-row]').forEach(row=>row.style.display=!q||row.dataset.keywords.includes(q)?'grid':'none');};
 }
 
 function drawRequests(){
   const box=document.getElementById('requestReview');
-  const requests=workingData.portal.requests||[];
+  const selectedFilter=document.getElementById('requestFilter')?.value||'all';
+  const allRequests=workingData.portal.requests||[];
+  const requests=selectedFilter==='all'?allRequests:allRequests.filter(req=>String(req.type||req.status||'').includes(selectedFilter)||String(req.status||'').includes(selectedFilter));
   const statusOptions=['Submitted','Pending','Approved','Denied'];
   box.innerHTML=requests.length?requests.map((req,i)=>`
-    <div class='item request-admin-row'>
+    <div class='admin-record-card request-admin-row'>
       <div class='request-admin-head'>
         <strong>#${escapeHtml(req.caseNumber||'Unnumbered')}</strong>
         <span>${escapeHtml(req.type||'Request')}</span>
@@ -273,23 +354,24 @@ function drawRequests(){
         ${req.fileLink?`<a href='${escapeHtml(req.fileLink)}' target='_blank' rel='noopener noreferrer'>Linked file</a>`:''}
       </div>
       <div class='grid two'>
-        <select data-req-status='${i}'>${statusOptions.map(status=>`<option ${String(req.status||'Submitted')===status?'selected':''}>${status}</option>`).join('')}</select>
-        <input data-req-note='${i}' value='${escapeHtml(req.adminNote||'')}' placeholder='Admin note visible to resident'>
+        <select data-req-status='${escapeHtml(req.id)}'>${statusOptions.map(status=>`<option ${String(req.status||'Submitted')===status?'selected':''}>${status}</option>`).join('')}</select>
+        <input data-req-note='${escapeHtml(req.id)}' value='${escapeHtml(req.adminNote||'')}' placeholder='Admin note visible to resident'>
       </div>
-      <button data-save-req='${i}'>Save Review Status</button>
+      <div class='record-actions'>${adminStatus()}<button data-save-req='${escapeHtml(req.id)}'>Save Review Status</button></div>
     </div>`).join(''):'<p class="help">No resident requests have been submitted yet.</p>';
+  markDirtyFromInputs(box);
   box.querySelectorAll('[data-save-req]').forEach(btn=>btn.onclick=async()=>{
-    const index=Number(btn.dataset.saveReq);
-    const req=requests[index];
+    const req=allRequests.find(item=>item.id===btn.dataset.saveReq);
     if(!req) return;
-    req.status=box.querySelector(`[data-req-status="${index}"]`).value;
-    req.adminNote=BWC.sanitize(box.querySelector(`[data-req-note="${index}"]`).value,240);
+    req.status=box.querySelector(`[data-req-status="${req.id}"]`).value;
+    req.adminNote=BWC.sanitize(box.querySelector(`[data-req-note="${req.id}"]`).value,240);
     req.updatedAt=new Date().toISOString();
-    await saveAdminChange('request.review',`${req.caseNumber||req.id}: ${req.status}`);
+    await saveFromButton(btn,'request.review',`${req.caseNumber||req.id}: ${req.status}`);
     drawRequests();
     drawDashboardCounts();
-    alert('Request status saved.');
   });
+  const filter=document.getElementById('requestFilter');
+  if(filter) filter.onchange=drawRequests;
 }
 
 function drawForumModeration(){
@@ -420,8 +502,9 @@ function drawResidentApprovals(){
   const active=residents.filter(r=>r.status==='active');
   const suspended=residents.filter(r=>r.status==='suspended');
   const contactsText=(r)=>BWC.normalizeHouseholdContacts(r).map(c=>[c.name,c.phone,c.email].filter(Boolean).join(' - ')).join('<br>')||'No household contacts listed';
-  const rowCard=(r,actions='')=>`<div class='item resident-admin-row'><strong>${escapeHtml(r.name)}</strong><br>${escapeHtml(r.address||'No address')}<br><small>${escapeHtml(r.email)}${r.phone?` - ${escapeHtml(r.phone)}`:''}${r.lot?` - Lot ${escapeHtml(r.lot)}`:''}${r.parcel?` - Parcel ${escapeHtml(r.parcel)}`:''} - Directory: ${r.directoryOptIn?'Yes':'No'}</small><div class='household-contact-list'>${contactsText(r)}</div>${actions}${r.role==='admin'?'':`<button data-remove-res='${escapeHtml(r.id)}' class='secondary danger'>Remove Resident</button>`}</div>`;
+  const rowCard=(r,actions='')=>`<div class='admin-record-card resident-admin-row' data-resident-row data-keywords='${escapeHtml(`${r.name||''} ${r.address||''} ${r.email||''} ${r.lot||''}`.toLowerCase())}'><div class='record-card-head'><strong>${escapeHtml(r.name)}</strong><span class='status-pill'>${escapeHtml(r.status||'pending')}</span></div><p>${escapeHtml(r.address||'No address')}</p><small>${escapeHtml(r.email)}${r.phone?` - ${escapeHtml(r.phone)}`:''}${r.lot?` - Lot ${escapeHtml(r.lot)}`:''}${r.parcel?` - Parcel ${escapeHtml(r.parcel)}`:''} - Directory: ${r.directoryOptIn?'Yes':'No'}</small><div class='household-contact-list'>${contactsText(r)}</div><div class='record-actions'>${actions}${r.role==='admin'?'':`<button data-remove-res='${escapeHtml(r.id)}' class='secondary danger'>Remove Resident</button>`}</div></div>`;
   box.innerHTML=`
+    <div class='filter-pills'><button data-res-filter='all'>All</button><button data-res-filter='pending'>Pending Approval</button><button data-res-filter='active'>Approved</button><button data-res-filter='notlisted'>Not Listed in Directory</button><button data-res-filter='suspended'>Suspended</button></div>
     <h3>Pending Approval (${pending.length})</h3>
     ${pending.map(r=>rowCard(r,`<button data-approve-res='${escapeHtml(r.id)}'>Approve${r.directoryOptIn?' & Add to Directory':''}</button><button data-suspend-res='${escapeHtml(r.id)}' class='secondary danger'>Suspend</button>`)).join('')||'<p class="help">No pending resident approvals.</p>'}
     <h3>Master Directory Entries (${active.filter(r=>r.directoryOptIn).length})</h3>
@@ -430,6 +513,30 @@ function drawResidentApprovals(){
     ${active.filter(r=>!r.directoryOptIn).map(r=>rowCard(r,`<button data-optin-res='${escapeHtml(r.id)}' class='secondary'>Add To Directory</button>`)).join('')||'<p class="help">None.</p>'}
     <h3>Suspended Residents (${suspended.length})</h3>
     ${suspended.map(r=>rowCard(r,`<button data-approve-res='${escapeHtml(r.id)}'>Reactivate</button>`)).join('')||'<p class="help">None.</p>'}`;
+  const directoryBox=document.getElementById('directoryManagement');
+  if(directoryBox) directoryBox.innerHTML=`<div class='admin-record-list'>${active.map(r=>rowCard(r,r.directoryOptIn?`<button data-optout-res='${escapeHtml(r.id)}' class='secondary'>Remove From Directory</button>`:`<button data-optin-res='${escapeHtml(r.id)}'>Add To Directory</button>`)).join('')||'<p class="help">No approved residents yet.</p>'}</div>`;
+  const wireResidentButtons=(scope)=>{
+    scope.querySelectorAll('[data-approve-res]').forEach(btn=>btn.onclick=async()=>{const row=residents.find(r=>r.id===btn.dataset.approveRes); if(row){row.status='active'; await saveAdminChange('admin.approve',row.email); drawResidentApprovals(); drawDashboardCounts(); alert('Resident approved.');}});
+    scope.querySelectorAll('[data-suspend-res]').forEach(btn=>btn.onclick=async()=>{const row=residents.find(r=>r.id===btn.dataset.suspendRes); if(row){row.status='suspended'; await saveAdminChange('admin.suspend',row.email); drawResidentApprovals(); drawDashboardCounts(); alert('Resident suspended.');}});
+    scope.querySelectorAll('[data-optout-res]').forEach(btn=>btn.onclick=async()=>{const row=residents.find(r=>r.id===btn.dataset.optoutRes); if(row){row.directoryOptIn=false; await saveAdminChange('admin.directory.optout',row.email); drawResidentApprovals(); alert('Resident removed from directory but access remains active.');}});
+    scope.querySelectorAll('[data-optin-res]').forEach(btn=>btn.onclick=async()=>{const row=residents.find(r=>r.id===btn.dataset.optinRes); if(row){row.directoryOptIn=true; await saveAdminChange('admin.directory.optin',row.email); drawResidentApprovals(); alert('Resident added to directory.');}});
+    scope.querySelectorAll('[data-remove-res]').forEach(btn=>btn.onclick=async()=>{
+      const row=residents.find(r=>r.id===btn.dataset.removeRes);
+      if(!row) return;
+      if(!await confirmDanger('Remove resident',`Remove ${row.name || row.email} from resident access and the directory? This cannot be undone from this screen.`,'Remove Resident')) return;
+      BWC.removeResidentFromData(workingData,row.id,'pin-admin');
+      await BWC.saveData(workingData);
+      drawResidentApprovals();
+      drawDashboardCounts();
+      alert('Resident removed.');
+    });
+  };
+  wireResidentButtons(box);
+  if(directoryBox) wireResidentButtons(directoryBox);
+  const search=document.getElementById('residentSearch');
+  if(search) search.oninput=()=>{const q=search.value.toLowerCase().trim(); box.querySelectorAll('[data-resident-row]').forEach(row=>row.style.display=!q||row.dataset.keywords.includes(q)?'block':'none');};
+  box.querySelectorAll('[data-res-filter]').forEach(btn=>btn.onclick=()=>{const filter=btn.dataset.resFilter; box.querySelectorAll('[data-resident-row]').forEach(row=>{const text=row.textContent.toLowerCase(); row.style.display=filter==='all'||text.includes(filter)||filter==='notlisted'&&text.includes('directory: no')?'block':'none';});});
+  return;
   box.querySelectorAll('[data-approve-res]').forEach(btn=>btn.onclick=async()=>{const row=residents.find(r=>r.id===btn.dataset.approveRes); if(row){row.status='active'; await saveAdminChange('admin.approve',row.email); drawResidentApprovals(); drawDashboardCounts(); alert('Resident approved.');}});
   box.querySelectorAll('[data-suspend-res]').forEach(btn=>btn.onclick=async()=>{const row=residents.find(r=>r.id===btn.dataset.suspendRes); if(row){row.status='suspended'; await saveAdminChange('admin.suspend',row.email); drawResidentApprovals(); drawDashboardCounts(); alert('Resident suspended.');}});
   box.querySelectorAll('[data-optout-res]').forEach(btn=>btn.onclick=async()=>{const row=residents.find(r=>r.id===btn.dataset.optoutRes); if(row){row.directoryOptIn=false; await saveAdminChange('admin.directory.optout',row.email); drawResidentApprovals(); alert('Resident removed from directory but access remains active.');}});
@@ -446,6 +553,6 @@ function drawResidentApprovals(){
   });
 }
 
-document.getElementById('login').onclick=async()=>{if(document.getElementById('pin').value!==BWC.defaultPin){setMessage('adminLoginMsg','Invalid PIN. Please try again.','error');return;}setMessage('adminLoginMsg','Opening admin dashboard...','success');auth.style.display='none';dash.style.display='block';render();};
+document.getElementById('login').onclick=async()=>{if(document.getElementById('pin').value!==BWC.defaultPin){setMessage('adminLoginMsg','Invalid PIN. Please try again.','error');return;}setMessage('adminLoginMsg','Opening admin dashboard...','success');auth.style.display='none';document.querySelector('.admin-login-wrap').style.display='none';dash.style.display='';render();};
 BWC.wireSiteNav();
 </script></body></html>
