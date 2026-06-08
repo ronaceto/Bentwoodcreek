@@ -226,6 +226,7 @@ async function wireSiteNav(){
     const options=[
       ['','Navigate to...'],
       ['/','Home'],
+      ['/home/','Home'],
       ['/about/','Our Association'],
       ['/welcome-to-the-neighborhood/','Welcome to the Neighborhood'],
       ['/welcome-new-homeowners/','New Homeowners'],
@@ -233,6 +234,8 @@ async function wireSiteNav(){
       ['/neighborhood-projects/','Neighborhood Projects'],
       ['/neighborhood-map/','Neighborhood Map'],
       ['/quick-reference/','Quick Reference'],
+      ['/reminders-alerts/','Reminders and Alerts'],
+      ['/safety-security/','Safety and Security'],
       ['/directory/','Resident Directory'],
       ['/contact/','Contacts'],
       ['/resident-portal/','Resident Login']
