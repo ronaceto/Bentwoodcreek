@@ -78,9 +78,9 @@ const contactDisplay = (entry) => BWC.normalizeHouseholdContacts(entry).map((con
   app.innerHTML = `
     <section class="directory-profile">
       <h2>Your Directory Listing</h2>
-      <p class="help">Manage the household names, phone numbers, and emails that appear in the master resident directory.</p>
+      <p class="help">Choose whether your household appears in the resident directory. Only publish details your household has consented to share.</p>
       <div id="dirProfileMsg" class="form-message" role="status"></div>
-      <label class="inline-check"><input id="myDirOptIn" type="checkbox" ${current.directoryOptIn ? 'checked' : ''}> List my household in the resident directory</label>
+      <label class="inline-check"><input id="myDirOptIn" type="checkbox" ${current.directoryOptIn ? 'checked' : ''}> I consent to list my household name, address, and phone number in the resident directory</label>
       <div class="grid two">
         <input id="myDirName" value="${escapeHtml(current.name || '')}" placeholder="Primary resident name">
         <input id="myDirPhone" value="${escapeHtml(current.phone || '')}" placeholder="Primary phone number">
@@ -131,7 +131,7 @@ const contactDisplay = (entry) => BWC.normalizeHouseholdContacts(entry).map((con
     const filtered = query
       ? entries.filter((entry) => [entry.name, entry.address, entry.phone, entry.email, entry.lot, entry.parcel, ...BWC.normalizeHouseholdContacts(entry).flatMap((contact) => [contact.name, contact.phone, contact.email])].join(' ').toLowerCase().includes(query))
       : entries;
-    summary.textContent = `${filtered.length} opted-in household${filtered.length === 1 ? '' : 's'}`;
+    summary.textContent = `${filtered.length} consented household${filtered.length === 1 ? '' : 's'}`;
     list.innerHTML = filtered.length ? filtered.map((entry) => `
       <article class="directory-entry">
         <h2>${escapeHtml(entry.name)}</h2>
