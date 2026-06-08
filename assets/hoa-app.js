@@ -222,8 +222,16 @@ async function wireSiteNav(){
   const logoutBtn=document.getElementById('siteTopLogout');
   const userEl=document.getElementById('siteTopUser');
   const siteTop=document.querySelector('.site-top');
+  const resident=await getSessionResident();
+  const canUseResidentOnly=!!resident&&resident.status==='active';
+  if(siteTop){
+    siteTop.querySelectorAll('a[href="/directory/"]').forEach(link=>{
+      link.hidden=!canUseResidentOnly;
+      link.dataset.residentOnly='true';
+    });
+  }
   if(siteTop&&!siteTop.querySelector('.site-mobile-nav')){
-    const options=[
+    const publicOptions=[
       ['','Navigate to...'],
       ['/','Home'],
       ['/about/','Our Association'],
@@ -235,10 +243,12 @@ async function wireSiteNav(){
       ['/quick-reference/','Quick Reference'],
       ['/reminders-alerts/','Reminders and Alerts'],
       ['/safety-security/','Safety and Security'],
-      ['/directory/','Resident Directory'],
       ['/contact/','Contacts'],
       ['/resident-portal/','Resident Login']
     ];
+    const options=canUseResidentOnly
+      ? [...publicOptions.slice(0,-2),['/directory/','Resident Directory'],...publicOptions.slice(-2)]
+      : publicOptions;
     const currentPath=location.pathname.endsWith('/')?location.pathname:`${location.pathname}/`;
     const selectedPath=currentPath==='/home/'?'/':currentPath;
     const select=document.createElement('select');
@@ -249,7 +259,6 @@ async function wireSiteNav(){
     select.onchange=()=>{ if(select.value) location.href=select.value; };
     siteTop.prepend(select);
   }
-  const resident=await getSessionResident();
   if(userEl) userEl.textContent=resident?`${resident.name} (${resident.role||'resident'})`:'';
   if(logoutBtn){
     logoutBtn.style.display=resident?'inline-flex':'none';
