@@ -11,19 +11,24 @@
   <nav class="site-top" aria-label="Primary navigation">
     <div class="site-top-inner">
       <a class="site-home" href="/" aria-label="Home">B</a>
-      <a href="/about/">Our Association</a>
       <div class="site-menu">
-        <button type="button" aria-haspopup="true">Residents</button>
+        <a href="/about/">About Us</a>
         <div class="site-menu-links">
+          <a href="/about/">Our Association</a>
           <a href="/welcome-to-the-neighborhood/">Welcome to the Neighborhood</a>
           <a href="/welcome-new-homeowners/">New Homeowners</a>
+        </div>
+      </div>
+      <div class="site-menu">
+        <a href="/quick-reference/">Resources</a>
+        <div class="site-menu-links">
           <a href="/upcoming-events/">Upcoming Events</a>
           <a href="/neighborhood-projects/">Neighborhood Projects</a>
           <a href="/neighborhood-map/">Neighborhood Map</a>
           <a href="/quick-reference/">Quick Reference</a>
           <a href="/reminders-alerts/">Reminders and Alerts</a>
           <a href="/safety-security/">Safety and Security</a>
-          <a href="/directory/">Resident Directory</a>
+          <a href="/directory/" data-resident-only="true">Resident Directory</a>
         </div>
       </div>
       <a href="/contact/">Contacts</a>
@@ -31,15 +36,10 @@
       <div class="site-session"><span id="siteTopUser"></span><button id="siteTopLogout" type="button" style="display:none">Logout</button></div>
     </div>
   </nav>
+  <section class="classic-hero" aria-label="Bentwood Creek">
+    <h1>Bentwood Creek<strong>Homeowners Association</strong></h1>
+  </section>
   <main class="container content-page">
-    <section class="content-hero">
-      <div>
-        <span class="content-kicker">Homeowners Association</span>
-        <h1>Bentwood Creek</h1>
-        <p class="page-lede">A resident-focused place for HOA contacts, neighborhood resources, map access, documents, events, and resident portal tools.</p>
-      </div>
-      <img class="image-banner" src="/wp-content/uploads/2011/09/DSC_6029.jpg" alt="Bentwood Creek neighborhood entrance">
-    </section>
     <section class="quick-link-grid" aria-label="Common resources">
       <a class="quick-link" href="/neighborhood-map/"><strong>Neighborhood Map</strong><span>Look up lots, streets, and parcel details.</span></a>
       <a class="quick-link" href="/quick-reference/"><strong>Quick Reference</strong><span>Review common covenant and architectural reminders.</span></a>
@@ -58,7 +58,7 @@
           <li><a href="/welcome-new-homeowners/">New homeowner orientation</a></li>
           <li><a href="/upcoming-events/">Upcoming neighborhood events</a></li>
           <li><a href="/neighborhood-projects/">Neighborhood projects</a></li>
-          <li><a href="/directory/">Resident directory</a></li>
+          <li><a href="/directory/" data-resident-only="true">Resident directory</a></li>
         </ul>
       </div>
       <div class="content-card">

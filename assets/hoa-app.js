@@ -224,12 +224,10 @@ async function wireSiteNav(){
   const siteTop=document.querySelector('.site-top');
   const resident=await getSessionResident();
   const canUseResidentOnly=!!resident&&resident.status==='active';
-  if(siteTop){
-    siteTop.querySelectorAll('a[href="/directory/"]').forEach(link=>{
+  document.querySelectorAll('[data-resident-only], .site-top a[href="/directory/"]').forEach(link=>{
       link.hidden=!canUseResidentOnly;
       link.dataset.residentOnly='true';
-    });
-  }
+  });
   if(siteTop&&!siteTop.querySelector('.site-mobile-nav')){
     const publicOptions=[
       ['','Navigate to...'],
