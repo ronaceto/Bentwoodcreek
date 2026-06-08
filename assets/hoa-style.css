@@ -38,6 +38,7 @@ small{color:#555}.hero{max-height:180px;object-fit:cover;width:100%}a{color:#9b4
 .danger{background:#a94442!important}
 h3,h4{margin:.6rem 0}
 .site-top{position:sticky;top:0;z-index:10001;background:#4d3a30 url('/wp-content/uploads/2015/10/pedit.jpg') center/cover no-repeat;padding:0 1rem 48px}
+.site-mobile-nav{display:none}
 .site-top-inner{max-width:1180px;margin:0 auto;display:grid;grid-template-columns:96px repeat(3,1fr) auto auto;background:#4d3a30;box-shadow:0 2px 8px rgba(0,0,0,.22)}
 .site-top a,.site-top button{min-height:76px;display:flex;align-items:center;justify-content:center;color:#fff;text-decoration:none;text-transform:uppercase;font-weight:700;letter-spacing:.02em;border:0;border-left:1px solid rgba(255,255,255,.2);background:#4d3a30;margin:0;padding:0 1rem;width:auto}
 .site-home{background:#f2bd10!important;font-size:1.65rem;border-left:0!important}
@@ -54,7 +55,8 @@ h3,h4{margin:.6rem 0}
 .site-session button{min-height:38px;border-radius:4px;background:#6b7280;text-transform:none}
 @media(max-width:850px){
   .site-top{padding:0;background:#4d3a30;box-shadow:0 2px 12px rgba(0,0,0,.2)}
-  .site-top-inner{display:flex;grid-template-columns:none;max-width:none;overflow-x:auto;overscroll-behavior-x:contain;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+  .site-mobile-nav{display:block;width:100%;min-height:46px;margin:0;padding:.6rem .75rem;border:0;border-radius:0;background:#fff;color:#1b1f24;font-size:16px;font-weight:700}
+  .site-top-inner{display:none}
   .site-top-inner::-webkit-scrollbar{display:none}
   .site-top a,.site-top button{flex:0 0 auto;min-height:46px;border-left:1px solid rgba(255,255,255,.16);border-top:0;padding:0 .85rem;font-size:.82rem;white-space:nowrap}
   .site-home{width:50px;padding:0!important;font-size:1.35rem}

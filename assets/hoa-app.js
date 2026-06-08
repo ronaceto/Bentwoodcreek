@@ -221,6 +221,31 @@ function requireRole(resident,roles){ if(!resident||!roles.includes(resident.rol
 async function wireSiteNav(){
   const logoutBtn=document.getElementById('siteTopLogout');
   const userEl=document.getElementById('siteTopUser');
+  const siteTop=document.querySelector('.site-top');
+  if(siteTop&&!siteTop.querySelector('.site-mobile-nav')){
+    const options=[
+      ['','Navigate to...'],
+      ['/','Home'],
+      ['/about/','Our Association'],
+      ['/welcome-to-the-neighborhood/','Welcome to the Neighborhood'],
+      ['/welcome-new-homeowners/','New Homeowners'],
+      ['/upcoming-events/','Upcoming Events'],
+      ['/neighborhood-projects/','Neighborhood Projects'],
+      ['/neighborhood-map/','Neighborhood Map'],
+      ['/quick-reference/','Quick Reference'],
+      ['/directory/','Resident Directory'],
+      ['/contact/','Contacts'],
+      ['/resident-portal/','Resident Login']
+    ];
+    const currentPath=location.pathname.endsWith('/')?location.pathname:`${location.pathname}/`;
+    const select=document.createElement('select');
+    select.className='site-mobile-nav';
+    select.setAttribute('aria-label','Primary navigation');
+    const hasCurrentOption=options.some(([value])=>value===currentPath);
+    select.innerHTML=options.map(([value,label],index)=>`<option value="${value}" ${index===0?'disabled':''} ${value===currentPath||(!value&&!hasCurrentOption)?'selected':''}>${label}</option>`).join('');
+    select.onchange=()=>{ if(select.value) location.href=select.value; };
+    siteTop.prepend(select);
+  }
   const resident=await getSessionResident();
   if(userEl) userEl.textContent=resident?`${resident.name} (${resident.role||'resident'})`:'';
   if(logoutBtn){
