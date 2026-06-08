@@ -226,7 +226,6 @@ async function wireSiteNav(){
     const options=[
       ['','Navigate to...'],
       ['/','Home'],
-      ['/home/','Home'],
       ['/about/','Our Association'],
       ['/welcome-to-the-neighborhood/','Welcome to the Neighborhood'],
       ['/welcome-new-homeowners/','New Homeowners'],
@@ -241,11 +240,12 @@ async function wireSiteNav(){
       ['/resident-portal/','Resident Login']
     ];
     const currentPath=location.pathname.endsWith('/')?location.pathname:`${location.pathname}/`;
+    const selectedPath=currentPath==='/home/'?'/':currentPath;
     const select=document.createElement('select');
     select.className='site-mobile-nav';
     select.setAttribute('aria-label','Primary navigation');
-    const hasCurrentOption=options.some(([value])=>value===currentPath);
-    select.innerHTML=options.map(([value,label],index)=>`<option value="${value}" ${index===0?'disabled':''} ${value===currentPath||(!value&&!hasCurrentOption)?'selected':''}>${label}</option>`).join('');
+    const hasCurrentOption=options.some(([value])=>value===selectedPath);
+    select.innerHTML=options.map(([value,label],index)=>`<option value="${value}" ${index===0?'disabled':''} ${value===selectedPath||(!value&&!hasCurrentOption)?'selected':''}>${label}</option>`).join('');
     select.onchange=()=>{ if(select.value) location.href=select.value; };
     siteTop.prepend(select);
   }
