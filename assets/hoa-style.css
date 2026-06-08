@@ -52,7 +52,19 @@ h3,h4{margin:.6rem 0}
 .site-session{display:flex;align-items:center;gap:.5rem;padding:.5rem .8rem;border-left:1px solid rgba(255,255,255,.2);color:#fff;background:#4d3a30}
 .site-session span{font-size:.85rem;white-space:nowrap}
 .site-session button{min-height:38px;border-radius:4px;background:#6b7280;text-transform:none}
-@media(max-width:850px){.site-top{padding:0}.site-top-inner{grid-template-columns:1fr}.site-top a,.site-top button{min-height:48px;border-left:0;border-top:1px solid rgba(255,255,255,.16)}.site-session{justify-content:center;border-left:0}.site-menu-links{position:static;display:block;box-shadow:none}.site-menu-links a{padding-left:2rem}}
+@media(max-width:850px){
+  .site-top{padding:0;background:#4d3a30;box-shadow:0 2px 12px rgba(0,0,0,.2)}
+  .site-top-inner{display:flex;grid-template-columns:none;max-width:none;overflow-x:auto;overscroll-behavior-x:contain;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+  .site-top-inner::-webkit-scrollbar{display:none}
+  .site-top a,.site-top button{flex:0 0 auto;min-height:46px;border-left:1px solid rgba(255,255,255,.16);border-top:0;padding:0 .85rem;font-size:.82rem;white-space:nowrap}
+  .site-home{width:50px;padding:0!important;font-size:1.35rem}
+  .site-top .resident-login-link{min-width:auto}
+  .site-menu{display:flex;flex:0 0 auto}
+  .site-menu-links{display:none!important}
+  .site-session{flex:0 0 auto;border-left:1px solid rgba(255,255,255,.16);padding:.25rem .5rem}
+  .site-session span:empty{display:none}
+  .site-session button{min-height:34px;font-size:.78rem}
+}
 .portal-nav{display:block;margin:1rem 0;overflow:visible;padding:.45rem 0 .7rem}
 .portal-tab-row{display:flex;flex-wrap:nowrap;gap:.35rem;width:100%}
 .portal-section-switcher{display:none}
@@ -277,8 +289,8 @@ summary{cursor:pointer;font-weight:700}
 @media(max-width:640px){
   .map-header{display:block}.map-header-actions{display:grid}.map-header-action{width:100%}
   .map-workspace,.map-workspace-popout{grid-template-columns:1fr}
-  .map-panel{max-height:none;order:2}
-  .parcel-map{min-height:58vh;order:1}.parcel-map-popout{min-height:70vh}
+  .map-panel{max-height:42vh;order:2}
+  .parcel-map{min-height:62vh;order:1}.parcel-map-popout{min-height:70vh}
   .lot-row{grid-template-columns:1fr}.lot-row small{grid-column:auto}
   .directory-entry dl{grid-template-columns:1fr}
   .household-contact-row{grid-template-columns:1fr}

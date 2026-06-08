@@ -1,0 +1,116 @@
+@media (max-width: 767px) {
+  html {
+    scroll-padding-top: 58px;
+  }
+
+  body {
+    overflow-x: hidden;
+    padding-top: 60px !important;
+  }
+
+  body .nav-wrapper {
+    position: fixed !important;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 10050;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #4d3a30;
+    box-shadow: 0 2px 12px rgba(0, 0, 0, .22);
+  }
+
+  body .nav-wrapper.isStuck {
+    position: fixed !important;
+    top: 0 !important;
+  }
+
+  .nav.nav__primary {
+    display: block;
+    margin: 0;
+    padding: 8px;
+    background: #4d3a30;
+  }
+
+  .nav.nav__primary .sf-menu {
+    display: none !important;
+  }
+
+  .nav.nav__primary select,
+  .nav.nav__primary .select-menu {
+    display: block !important;
+    width: 100% !important;
+    min-height: 44px;
+    margin: 0 !important;
+    padding: 10px 12px;
+    border: 1px solid rgba(255, 255, 255, .32);
+    border-radius: 6px;
+    background: #fff;
+    color: #1b1f24;
+    font-size: 16px;
+    font-weight: 700;
+  }
+
+  .header,
+  .home .header {
+    padding-bottom: 14px !important;
+  }
+
+  .container,
+  .motopress-wrapper .container {
+    width: auto !important;
+    max-width: 100% !important;
+    padding-left: 14px;
+    padding-right: 14px;
+    box-sizing: border-box;
+  }
+
+  .row,
+  [class*="span"] {
+    width: auto !important;
+    max-width: 100% !important;
+    margin-left: 0 !important;
+    float: none !important;
+    box-sizing: border-box;
+  }
+
+  img,
+  iframe,
+  object,
+  embed {
+    max-width: 100%;
+    height: auto;
+  }
+
+  h1,
+  h2 {
+    line-height: 1.15 !important;
+    overflow-wrap: anywhere;
+  }
+
+  h1 {
+    font-size: 28px !important;
+  }
+
+  h2 {
+    font-size: 30px !important;
+  }
+
+  .home-landing .content-holder,
+  .home-landing .footer,
+  .home-landing #back-top-wrapper {
+    display: block !important;
+  }
+
+  body.home-landing,
+  .home-landing #motopress-main,
+  .home-landing .header {
+    height: auto !important;
+    min-height: 0 !important;
+    overflow: visible !important;
+  }
+
+  .home-landing .home-quick-actions {
+    margin-top: 18px !important;
+  }
+}
